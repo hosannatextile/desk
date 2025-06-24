@@ -14,10 +14,7 @@ const ticketSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-<<<<<<< HEAD
     enum: ['technical', 'billing', 'general', 'other','Complaint'],
-=======
->>>>>>> 532324c85c5d94fffca12a3a880bad1badd3e128
   },
   description: {
     type: String,
@@ -26,10 +23,7 @@ const ticketSchema = new mongoose.Schema({
   priority: {
     type: String,
     required: true,
-<<<<<<< HEAD
     enum: ['Very Urgent', 'Normal', 'Urgent'],
-=======
->>>>>>> 532324c85c5d94fffca12a3a880bad1badd3e128
   },
   deadline: {
     type: Date,
