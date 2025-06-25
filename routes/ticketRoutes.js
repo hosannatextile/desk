@@ -31,9 +31,7 @@ const cpUpload = upload.fields([
   { name: 'image', maxCount: 1 }
 ]);
 
-app.get('/ping', (req, res) => {
-  res.send('Server is alive!');
-});
+
 
 // Create a ticket
 router.post('/', cpUpload, async (req, res) => {
