@@ -45,10 +45,18 @@ router.post('/', cpUpload, async (req, res) => {
     rights
   } = req.body;
 
+  // Basic validation
   if (!user_id || !recipient_ids || !type || !description || !priority) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
+  // Validate rights if provided
+  const allowedRights = ['View', 'Forward', 'Power'];
+  if (rights && !allowedRights.includes(rights)) {
+    return res.status(400).json({ error: 'Invalid rights value.' });
+  }
+
+  // Parse recipient_ids if sent as a JSON string
   let parsedRecipients = recipient_ids;
   if (typeof recipient_ids === 'string') {
     try {
@@ -62,25 +70,40 @@ router.post('/', cpUpload, async (req, res) => {
   const uniqueSuffix = Date.now();
 
   try {
+    // Handle voice note
     if (req.files.voice_note) {
-      const file = req.files.voice_note[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
-      fs.renameSync(file.path, newPath);
-      media.voice_note_url = `/uploads/${path.basename(newPath)}`;
+      try {
+        const file = req.files.voice_note[0];
+        const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
+        fs.renameSync(file.path, newPath);
+        media.voice_note_url = `/uploads/${path.basename(newPath)}`;
+      } catch (err) {
+        console.error('Voice note upload error:', err);
+      }
     }
 
+    // Handle video
     if (req.files.video) {
-      const file = req.files.video[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
-      fs.renameSync(file.path, newPath);
-      media.video_url = `/uploads/${path.basename(newPath)}`;
+      try {
+        const file = req.files.video[0];
+        const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
+        fs.renameSync(file.path, newPath);
+        media.video_url = `/uploads/${path.basename(newPath)}`;
+      } catch (err) {
+        console.error('Video upload error:', err);
+      }
     }
 
+    // Handle image
     if (req.files.image) {
-      const file = req.files.image[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
-      fs.renameSync(file.path, newPath);
-      media.image_url = `/uploads/${path.basename(newPath)}`;
+      try {
+        const file = req.files.image[0];
+        const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
+        fs.renameSync(file.path, newPath);
+        media.image_url = `/uploads/${path.basename(newPath)}`;
+      } catch (err) {
+        console.error('Image upload error:', err);
+      }
     }
 
     const ticket = new Ticket({
@@ -106,6 +129,11 @@ router.post('/', cpUpload, async (req, res) => {
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
+
+  // Validate user_id format
+  if (!mongoose.Types.ObjectId.isValid(user_id)) {
+    return res.status(400).json({ error: 'Invalid user_id format.' });
+  }
 
   try {
     const results = await Ticket.aggregate([
@@ -146,7 +174,7 @@ router.get('/summary/:user_id', async (req, res) => {
       }
     ]);
 
-    const { typeCounts, statusCounts } = results[0];
+    const { typeCounts = [], statusCounts = [] } = results[0] || {};
     res.json({ user_id, typeCounts, statusCounts });
   } catch (error) {
     console.error('Error fetching summary:', error);
