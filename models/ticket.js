@@ -6,15 +6,15 @@ const ticketSchema = new mongoose.Schema({
     required: true,
     ref: 'User',
   },
-  recipient_ids: [{ // Changed from recipient_id to recipient_ids
+  recipient_ids: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Each element refers to a User
-    required: true
+    ref: 'User',
+    required: true,
   }],
   type: {
     type: String,
     required: true,
-    enum: ['technical', 'billing', 'general', 'other','Complaint'],
+    enum: ['technical', 'billing', 'general', 'other', 'Complaint'],
   },
   description: {
     type: String,
@@ -25,9 +25,7 @@ const ticketSchema = new mongoose.Schema({
     required: true,
     enum: ['Very Urgent', 'Normal', 'Urgent'],
   },
-  deadline: {
-    type: Date,
-  },
+  deadline: Date,
   media: {
     voice_note_url: String,
     video_url: String,
@@ -37,12 +35,11 @@ const ticketSchema = new mongoose.Schema({
     type: String,
     default: 'pending',
   },
-  rights:{
-    type:String,
-    enum: ['View','Forward','Power']
+  rights: {
+    type: String,
+    enum: ['View', 'Forward', 'Power']
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
+// ✅ THIS LINE IS VERY IMPORTANT
 module.exports = mongoose.model('Ticket', ticketSchema);
