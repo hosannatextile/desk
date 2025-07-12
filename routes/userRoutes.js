@@ -7,7 +7,7 @@ const User = require('../models/user');
 const authenticateToken = require('../middleware/auth');
 
 // Ensure the upload directory exists
-const uploadDir = path.join(__dirname, '../users_data/images/profile_images');
+const uploadDir = path.join(__dirname, '..', 'users_data');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
