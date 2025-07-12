@@ -122,7 +122,7 @@ router.post('/', upload.single('profilePhoto'), async (req, res) => {
       fs.renameSync(oldPath, newPath);
 
       // Save relative path
-      profilePhotoPath = `users_data/images/profile_images/${newFileName}`;
+      profilePhotoPath = `users_data/${newFileName}`;
     }
 
     const newUser = new User({
