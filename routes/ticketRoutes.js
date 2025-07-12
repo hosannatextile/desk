@@ -119,7 +119,6 @@ router.post('/', cpUpload, async (req, res) => {
   }
 });
 
-
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
@@ -182,7 +181,6 @@ router.get('/summary/:user_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
 
 // Filter tickets by user_id and status
 router.get('/filter', async (req, res) => {
@@ -286,7 +284,6 @@ router.post('/recipient/:recipient_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
 
 //forward the ticket
 router.put('/forward', async (req, res) => {
