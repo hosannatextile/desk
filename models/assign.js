@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const AssignSchema = new mongoose.Schema({
   ticket_id: {
     type: mongoose.Schema.Types.ObjectId,
