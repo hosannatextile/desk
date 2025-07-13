@@ -194,10 +194,10 @@ router.get('/filter', async (req, res) => {
   }
 
   try {
-    // Step 1: Fetch tickets
     const tickets = await Ticket.find({ user_id, status })
-      .select('type description priority deadline media status created_at recipient_ids')
-      .populate('recipient_ids', 'fullName');
+      .select('type description priority deadline media status created_at recipient_ids user_id')
+      .populate('recipient_ids', 'fullName')
+      .populate('user_id', 'fullName email role department'); // ✅ populate creator
 
     const enrichedTickets = [];
 
@@ -209,31 +209,41 @@ router.get('/filter', async (req, res) => {
 
       const assignInfo = [];
 
-      // Step 2: For each recipient, find Assigns where:
-      // recipient_id == Assign.user_id && Assign.ticket_id == ticket._id
       for (const recipient of ticket.recipient_ids) {
         const assignRecord = await Assign.findOne({
           user_id: recipient._id,
           ticket_id: ticket._id
-        });
+        }).lean();
 
         if (assignRecord) {
           const assignUsers = await User.find({
             _id: { $in: assignRecord.assign_to }
-          }).select('fullName email role department');
+          }).select('fullName email role department').lean();
 
           assignInfo.push({
             recipient_id: recipient._id,
-            assignUsers
+            assignUsers,
+            details: assignRecord.Details,
+            media_type: assignRecord.media_type,
+            priority: assignRecord.priority,
+            targetget_date: assignRecord.targetget_date,
+            status: assignRecord.status,
+            created_at: assignRecord.created_at
           });
         }
       }
 
       enrichedTickets.push({
         ...ticket.toJSON(),
-        created_at: ticket.created_at,
         recipients: recipientInfo,
-        assignInfo
+        assignInfo,
+        created_by: {
+          user_id: ticket.user_id._id,
+          fullName: ticket.user_id.fullName,
+          email: ticket.user_id.email,
+          role: ticket.user_id.role,
+          department: ticket.user_id.department
+        }
       });
     }
 
