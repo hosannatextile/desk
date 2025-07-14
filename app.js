@@ -11,6 +11,7 @@ const workinstruction = require('./routes/workinstructionRouter');
 const management_wi= require('./routes/management_wi_routes')
 const forgotpass = require('./routes/forgotpasswordRoutes')
 const assign= require('./routes/assignRoutes')
+
 // const admin = require('../firebase'); // Firebase initialized
 const ticketresponse = require('./routes/ticketresponseroutes')
 const path = require('path');
@@ -20,6 +21,7 @@ connectDB();
 const app = express();
 app.use(cors());  // Enable CORS for all routes
 app.use(express.json());
+
 
 app.use('/api/users', userRoutes);
 app.use('/api/login', loginroutes);

@@ -10,32 +10,27 @@ const REFRESH_TOKEN_SECRET = 'a9f83b7f1d6e4c8a9e6f2c3b0d1f7a3e4b8c6d2e1f0a5c7b9e
 
 let refreshTokens = []; // For demo only. Use DB in production.
 
+const multer = require('multer');
+
+// Set up Multer for handling form-data (no file here, just fields)
+const upload = multer();
+
+// Use this middleware to handle form-data parsing
 router.post('/', async (req, res) => {
-  const { cnic, password, role, fcm_token } = req.body;
-
-  if (!cnic || !password) {
-    return res.status(400).json({ error: 'CNIC and password are required.' });
-  }
-
-  const validRoles = ['Incharge', 'Supervisor', 'Super Admin', 'IT', 'Management', 'Admin'];
-  if (role && !validRoles.includes(role)) {
-    return res.status(400).json({ error: 'Invalid role.' });
-  }
-
-  if (fcm_token && typeof fcm_token !== 'string') {
-    return res.status(400).json({ error: 'Invalid FCM token.' });
-  }
-
   try {
-    const userQuery = { cnic };
-    if (role) userQuery.role = role;
+    const { cnic, password, role, fcm_token } = req.body;
 
-    const user = await User.findOne(userQuery);
-    if (!user || !await bcrypt.compare(password, user.password)) {
-      return res.status(401).json({ error: 'Invalid credentials.' });
+    if (!cnic || !password || !role) {
+      return res.status(400).json({ error: 'CNIC, password, and role are required.' });
     }
 
-    if (fcm_token) {
+    const user = await User.findOne({ cnic, password, role });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials or role.' });
+    }
+
+    if (fcm_token && user.fcm_token !== fcm_token) {
       user.fcm_token = fcm_token;
       await user.save();
     }
@@ -46,11 +41,10 @@ router.post('/', async (req, res) => {
       role: user.role
     };
 
-    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
-    // Store refresh token in DB (example: RefreshToken model)
-    await RefreshToken.create({ token: refreshToken, userId: user._id });
+    refreshTokens.push(refreshToken);
 
     res.json({
       message: 'Login successful',
@@ -65,6 +59,7 @@ router.post('/', async (req, res) => {
         username: user.username
       }
     });
+
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Server error during login' });
