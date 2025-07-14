@@ -301,4 +301,54 @@ router.get('/assign/count', async (req, res) => {
   }
 });
 
+
+router.get('/adminreport-count', async (req, res) => {
+  const { user_id } = req.query;
+
+  if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
+    return res.status(400).json({ error: 'Valid user_id is required.' });
+  }
+
+  try {
+    const now = new Date();
+
+    // Get all Assign records where user is assigned
+    const assigned = await Assign.find({ assign_to: user_id }).populate('ticket_id', 'user_id created_at').lean();
+
+    let pending = 0;
+    let completed = 0;
+    let delayed = 0;
+
+    for (const assign of assigned) {
+      const isCompleted = assign.status?.toLowerCase() === 'completed';
+      const isDelayed = assign.targetget_date && new Date(assign.targetget_date) < now;
+
+      if (isCompleted) {
+        completed++;
+      } else if (isDelayed) {
+        delayed++;
+      } else {
+        pending++;
+      }
+    }
+
+    // Count all requested tickets where this user is the creator
+    const requested = await Ticket.countDocuments({ user_id });
+
+    const totalResolved = pending + completed + delayed;
+
+    res.json({
+      pending,
+      completed,
+      delayed,
+      requested,
+      totalResolved
+    });
+
+  } catch (error) {
+    console.error('Error in /report-count:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 module.exports = router;

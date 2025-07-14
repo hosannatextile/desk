@@ -119,6 +119,7 @@ router.post('/', cpUpload, async (req, res) => {
   }
 });
 
+
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
@@ -182,7 +183,7 @@ router.get('/summary/:user_id', async (req, res) => {
   }
 });
 
-// Filter tickets by user_id and status
+
 router.get('/filter', async (req, res) => {
   const { user_id, status } = req.query;
 
@@ -235,15 +236,7 @@ router.get('/filter', async (req, res) => {
 
       enrichedTickets.push({
         ...ticket.toJSON(),
-        recipients: recipientInfo,
         assignInfo,
-        created_by: {
-          user_id: ticket.user_id._id,
-          fullName: ticket.user_id.fullName,
-          email: ticket.user_id.email,
-          role: ticket.user_id.role,
-          department: ticket.user_id.department
-        }
       });
     }
 
@@ -254,6 +247,99 @@ router.get('/filter', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
+
+router.get('/filtertwo', async (req, res) => {
+  const { user_id, manager_id } = req.query;
+
+  if (!user_id || !manager_id) {
+    return res.status(400).json({ error: 'user_id and manager_id are required.' });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(user_id) || !mongoose.Types.ObjectId.isValid(manager_id)) {
+    return res.status(400).json({ error: 'Invalid ObjectId format.' });
+  }
+
+  try {
+    // 1. Find Assignments where user_id is manager and assign_to includes user_id
+    const assigns = await Assign.find({
+      user_id: manager_id,
+      assign_to: user_id
+    }).lean();
+
+    const ticketIds = assigns.map(a => a.ticket_id);
+    const assignToUserIds = [...new Set(assigns.flatMap(a => a.assign_to.map(id => id.toString())))];
+
+    // 2. Get full User details for assign_to users
+    const assignToUsersMap = {};
+    const assignToUsers = await User.find({ _id: { $in: assignToUserIds } }).select('fullName email role department');
+    assignToUsers.forEach(user => {
+      assignToUsersMap[user._id.toString()] = user;
+    });
+
+    // 3. Get corresponding Tickets and populate
+    const tickets = await Ticket.find({ _id: { $in: ticketIds } })
+      .populate('recipient_ids', 'fullName')
+      .populate('user_id', 'fullName email role department');
+
+    // 4. Enrich ticket data
+    const enriched = tickets.map(ticket => {
+      const assignRecord = assigns.find(a => a.ticket_id?.toString() === ticket._id.toString());
+
+      return {
+        ticket_id: ticket._id,
+        type: ticket.type,
+        description: ticket.description,
+        priority: ticket.priority,
+        deadline: ticket.deadline,
+        media: ticket.media,
+        status: ticket.status,
+        created_at: ticket.created_at,
+
+        recipients: ticket.recipient_ids.map(r => ({
+          recipient_id: r._id,
+          fullName: r.fullName
+        })),
+
+        assign_details: assignRecord ? {
+          manager_id: assignRecord.user_id,
+          assign_to: assignRecord.assign_to.map(id => ({
+            _id: id,
+            fullName: assignToUsersMap[id.toString()]?.fullName || null,
+            email: assignToUsersMap[id.toString()]?.email || null,
+            role: assignToUsersMap[id.toString()]?.role || null,
+            department: assignToUsersMap[id.toString()]?.department || null
+          })),
+          details: assignRecord.Details,
+          media_type: assignRecord.media_type,
+          priority: assignRecord.priority,
+          targetget_date: assignRecord.targetget_date,
+          status: assignRecord.status,
+          created_at: assignRecord.created_at
+        } : null,
+
+        created_by: {
+          user_id: ticket.user_id?._id,
+          fullName: ticket.user_id?.fullName,
+          email: ticket.user_id?.email,
+          role: ticket.user_id?.role,
+          department: ticket.user_id?.department
+        }
+      };
+    });
+
+    res.json({ tickets: enriched });
+
+  } catch (error) {
+    console.error('Error in /filtertwo:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+
+
+
+
 
 
 // Get all complaint tickets assigned to a recipient (filtered by optional status)
@@ -294,6 +380,7 @@ router.post('/recipient/:recipient_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 //forward the ticket
 router.put('/forward', async (req, res) => {
@@ -550,30 +637,41 @@ router.get('/count-today/:user_id', async (req, res) => {
 
   try {
     // Define today's date range in PKT (Pakistan Standard Time, UTC+5)
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0); // Start of today in UTC
-    today.setUTCHours(today.getUTCHours() + 5); // Adjust to PKT (UTC+5)
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1); // Start of next day in PKT
+    const now = new Date();
+    const todayPKT = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5, 0, 0)); // Start of day in PKT
+    const tomorrowPKT = new Date(todayPKT);
+    tomorrowPKT.setDate(todayPKT.getDate() + 1); // Start of next day in PKT
 
-    // Count tickets where user_id matches and created_at is today
-    const ticketCount = await Ticket.countDocuments({
+    // Filter for tickets created today by user_id
+    const filter = {
       user_id,
       created_at: {
-        $gte: today,
-        $lt: tomorrow
+        $gte: todayPKT,
+        $lt: tomorrowPKT
       }
+    };
+
+    // Count total tickets
+    const totalCount = await Ticket.countDocuments(filter);
+
+    // Count completed tickets
+    const completedCount = await Ticket.countDocuments({
+      ...filter,
+      status: 'completed'
     });
 
     res.json({
       user_id,
-      count: ticketCount,
-      date: today.toISOString().split('T')[0] // Return date for clarity (YYYY-MM-DD)
+      date: todayPKT.toISOString().split('T')[0],
+      totalCreatedToday: totalCount,
+      completedToday: completedCount
     });
+
   } catch (error) {
-    console.error('Error counting tickets:', error);
+    console.error('Error counting today\'s tickets:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 module.exports = router;
