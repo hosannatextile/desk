@@ -17,21 +17,27 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'CNIC and password are required.' });
   }
 
+  const validRoles = ['Incharge', 'Supervisor', 'Super Admin', 'IT', 'Management', 'Admin'];
+  if (role && !validRoles.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role.' });
+  }
+
+  if (fcm_token && typeof fcm_token !== 'string') {
+    return res.status(400).json({ error: 'Invalid FCM token.' });
+  }
+
   try {
-    // Find user by CNIC, password, and optional role
-    const userQuery = { cnic, password };
+    const userQuery = { cnic };
     if (role) userQuery.role = role;
 
     const user = await User.findOne(userQuery);
-
-    if (!user) {
+    if (!user || !await bcrypt.compare(password, user.password)) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
-    // ✅ Update fcm_token if provided
     if (fcm_token) {
       user.fcm_token = fcm_token;
-      await user.save(); // Save the updated fcm_token
+      await user.save();
     }
 
     const payload = {
@@ -40,10 +46,11 @@ router.post('/', async (req, res) => {
       role: user.role
     };
 
-    const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
-    refreshTokens.push(refreshToken); // In real apps, store in DB
+    // Store refresh token in DB (example: RefreshToken model)
+    await RefreshToken.create({ token: refreshToken, userId: user._id });
 
     res.json({
       message: 'Login successful',
@@ -58,7 +65,6 @@ router.post('/', async (req, res) => {
         username: user.username
       }
     });
-
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Server error during login' });
