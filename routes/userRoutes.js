@@ -84,45 +84,41 @@ router.post('/', upload.single('profilePhoto'), async (req, res) => {
       status
     } = req.body;
 
-     // Required field validation
-     const missingFields = [];
-     if (!fullName) missingFields.push('fullName');
-     if (!mobileNumber) missingFields.push('mobileNumber');
-     if (!cnic) missingFields.push('cnic');
-     if (!email) missingFields.push('email');
-     if (!department) missingFields.push('department');
-     if (!role) missingFields.push('role');
-     if (!username) missingFields.push('username');
-     if (!password) missingFields.push('password');
-     if (!status) missingFields.push('status');
- 
-     if (missingFields.length > 0) {
-       return res.status(400).json({ 
-         error: 'Required fields are missing', 
-         missingFields 
-       });
-     }
-    // Required field validation
-    // if (
-    //   !fullName || !mobileNumber || !cnic || !email || !department ||
-    //   !role || !username || !password || status
-    // ) {
-    //   return res.status(400).json({ error: 'All required fields must be filled.' });
-    // }
+    // Required fields validation
+    const missingFields = [];
+    if (!fullName) missingFields.push('fullName');
+    if (!mobileNumber) missingFields.push('mobileNumber');
+    if (!cnic) missingFields.push('cnic');
+    if (!email) missingFields.push('email');
+    if (!department) missingFields.push('department');
+    if (!role) missingFields.push('role');
+    if (!username) missingFields.push('username');
+    if (!password) missingFields.push('password');
+    if (!status) missingFields.push('status');
 
-    // Rename file with CNIC if file uploaded
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: 'Required fields are missing',
+        missingFields
+      });
+    }
+
+    // File upload and renaming
     let profilePhotoPath = null;
+    let profilePhotoUrl = null;
+    const uniqueSuffix = Date.now();
+    const serverUrl = `${req.protocol}://${req.get('host')}`;
+
     if (req.file) {
       const ext = path.extname(req.file.originalname);
-      const newFileName = `${cnic}${ext}`;
+      const newFileName = `${cnic}_${uniqueSuffix}${ext}`;
       const oldPath = req.file.path;
       const newPath = path.join(path.dirname(oldPath), newFileName);
 
-      // Rename file
       fs.renameSync(oldPath, newPath);
 
-      // Save relative path
       profilePhotoPath = `users_data/${newFileName}`;
+      profilePhotoUrl = `${serverUrl}/${profilePhotoPath}`;
     }
 
     const newUser = new User({
@@ -135,11 +131,20 @@ router.post('/', upload.single('profilePhoto'), async (req, res) => {
       role,
       username,
       password,
-      status
+      status,
+      created_at: new Date()
     });
 
     const savedUser = await newUser.save();
-    res.status(201).json(savedUser);
+
+    res.status(201).json({
+      message: 'User created successfully.',
+      user: {
+        ...savedUser.toJSON(),
+        profilePhotoUrl,
+        created_at: savedUser.created_at
+      }
+    });
 
   } catch (err) {
     console.error(err);
