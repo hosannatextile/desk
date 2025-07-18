@@ -24,11 +24,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'CNIC, password, and role are required.' });
     }
 
-    const user = await User.findOne({ cnic, password, role });
+    const user = await User.findOne({ cnic, password, role }).select(
+      '_id fullName cnic email role username profilePhoto fcm_token'
+    );
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials or role.' });
     }
+
+    // Log profilePhoto to debug
+    console.log('User profilePhoto:', user.profilePhoto);
 
     if (fcm_token && user.fcm_token !== fcm_token) {
       user.fcm_token = fcm_token;
@@ -56,7 +61,8 @@ router.post('/', async (req, res) => {
         cnic: user.cnic,
         email: user.email,
         role: user.role,
-        username: user.username
+        username: user.username,
+        profilePhoto: user.profilePhoto // Explicitly included
       }
     });
 
@@ -112,7 +118,8 @@ router.post('/emaillogin', async (req, res) => {
         email: user.email,
         cnic: user.cnic,
         role: user.role,
-        username: user.username
+        username: user.username,
+        profilePhoto: user.profilePhoto
       }
     });
 
