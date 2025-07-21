@@ -348,32 +348,45 @@ router.post('/recipient/:recipient_id', async (req, res) => {
   const { status, type } = req.query;
 
   try {
+    // Build query object with recipient_id as the primary filter
     const query = {
-      type: type,
-      recipient_ids: { $in: [recipient_id] }  // ensures it checks inside array
+      recipient_ids: { $in: [recipient_id] }, // Match recipient_id in array
     };
 
+    // Optionally add type to query if provided
+    if (type) {
+      query.type = type;
+    }
+
+    // Optionally add status to query if provided
     if (status) {
       query.status = status;
     }
 
+    // Fetch tickets matching the query
     const tickets = await Ticket.find(query);
 
+    // Check if tickets exist
     if (!tickets.length) {
       return res.status(404).json({ message: 'No tickets found.' });
     }
 
+    // Get unique user IDs from tickets
     const userIds = [...new Set(tickets.map(ticket => ticket.user_id.toString()))];
+
+    // Fetch users associated with the tickets
     const users = await User.find({ _id: { $in: userIds } }).select('-password');
 
+    // Map tickets to include sender details
     const ticketDetails = tickets.map(ticket => {
       const user = users.find(u => u._id.toString() === ticket.user_id.toString());
       return {
         ticket,
-        sender: user || null
+        sender: user || null,
       };
     });
 
+    // Return response with ticket count and details
     res.status(200).json({ count: ticketDetails.length, ticketDetails });
   } catch (error) {
     console.error('Error fetching complaint tickets:', error);
