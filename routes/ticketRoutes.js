@@ -343,7 +343,7 @@ router.get('/filtertwo', async (req, res) => {
 
 
 // Get all complaint tickets assigned to a recipient (filtered by optional status)
-router.get('/recipient/:recipient_id', async (req, res) => {
+router.post('/recipient/:recipient_id', async (req, res) => {
   const { recipient_id } = req.params;
   const { status, type } = req.query;
 
