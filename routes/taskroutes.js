@@ -5,7 +5,7 @@ const path = require('path');
 const router = express.Router();
 const User = require('../models/user');
 const Task = require('../models/task'); // adjust path as necessary
-const cpUpload = require('../middleware/multer'); // assumes multer config is in middleware
+//const cpUpload = require('../middleware/multer'); // assumes multer config is in middleware
 
 const uploadDir = path.join(__dirname, '..', 'users_data');
 if (!fs.existsSync(uploadDir)) {
