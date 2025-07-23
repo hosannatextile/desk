@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+const User = require('../models/user');
 const Task = require('../models/task'); // adjust path as necessary
 const cpUpload = require('../middleware/multer'); // assumes multer config is in middleware
 
@@ -131,6 +132,35 @@ router.get('/assign', async (req, res) => {
   } catch (err) {
     console.error("Error in /assign:", err);
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+router.get('/tasks/recipient', async (req, res) => {
+  try {
+    const { recipient_id, status } = req.query;
+
+    if (!recipient_id) {
+      return res.status(400).json({ success: false, message: "recipient_id is required" });
+    }
+
+    // Build the query
+    const query = {
+      assign_to: recipient_id
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const tasks = await Task.find(query)
+      .populate('user_id', 'name email')        // Optional: populate task creator
+      .populate('assign_to', 'name email');     // Optional: populate assigned users
+
+    res.json({ success: true, data: tasks });
+  } catch (err) {
+    console.error('Error fetching tasks:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
