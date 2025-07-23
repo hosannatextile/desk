@@ -14,13 +14,13 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Configure multer storage
+// ✅ Fixed file extensions
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, Date.now() + path.extname(file.originalname)); // temp name
   }
 });
 
@@ -32,7 +32,6 @@ const cpUpload = upload.fields([
   { name: 'image', maxCount: 1 }
 ]);
 
-// POST /assign
 router.post('/assign', cpUpload, async (req, res) => {
   try {
     const {
@@ -42,10 +41,10 @@ router.post('/assign', cpUpload, async (req, res) => {
       priority,
       targetget_date,
       status,
-      ticket_id // <- Accepting ticket_id
+      ticket_id
     } = req.body;
 
-    // Parse assign_to if it's a string
+    // Parse assign_to if needed
     let parsedAssignTo = assign_to;
     if (typeof assign_to === 'string') {
       try {
@@ -59,28 +58,31 @@ router.post('/assign', cpUpload, async (req, res) => {
     const uniqueSuffix = Date.now();
     const serverUrl = `${req.protocol}://${req.get('host')}`;
 
+    // ✅ Save voice note as .mp3
     if (req.files.voice_note) {
       const file = req.files.voice_note[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice.mp3`);
       fs.renameSync(file.path, newPath);
       media_type.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
+    // ✅ Save video as .mp4
     if (req.files.video) {
       const file = req.files.video[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_video.mp4`);
       fs.renameSync(file.path, newPath);
       media_type.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
+    // ✅ Save image as .jpg
     if (req.files.image) {
       const file = req.files.image[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_image.jpg`);
       fs.renameSync(file.path, newPath);
       media_type.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    // Create new assignment
+    // Save assignment
     const newAssign = new Assign({
       ticket_id,
       user_id,
@@ -94,7 +96,7 @@ router.post('/assign', cpUpload, async (req, res) => {
 
     const savedAssign = await newAssign.save();
 
-    // ✅ Update the related ticket's status to "Assign"
+    // ✅ Update related ticket
     if (ticket_id && mongoose.Types.ObjectId.isValid(ticket_id)) {
       await Ticket.findByIdAndUpdate(ticket_id, { status: 'Assign' });
     }

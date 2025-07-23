@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, Date.now() + path.extname(file.originalname)); // initial temp name
   }
 });
 
@@ -50,13 +50,11 @@ router.post('/', cpUpload, async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
-  // Validate 'rights' enum
   const validRights = ['View', 'Forward', 'Power'];
   if (rights && !validRights.includes(rights)) {
     return res.status(400).json({ error: 'Invalid value for rights. Must be View, Forward, or Power.' });
   }
 
-  // Parse recipient_ids if it's a string
   let parsedRecipients = recipient_ids;
   if (typeof recipient_ids === 'string') {
     try {
@@ -73,23 +71,23 @@ router.post('/', cpUpload, async (req, res) => {
   try {
     if (req.files.voice_note) {
       const file = req.files.voice_note[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice.mp3`);
       fs.renameSync(file.path, newPath);
-      media.voice_note_url = `${serverUrl}/${path.basename(newPath)}`;
+      media.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     if (req.files.video) {
       const file = req.files.video[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_video.mp4`);
       fs.renameSync(file.path, newPath);
-      media.video_url = `${serverUrl}/${path.basename(newPath)}`;
+      media.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     if (req.files.image) {
       const file = req.files.image[0];
-      const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_image.jpg`);
       fs.renameSync(file.path, newPath);
-      media.image_url = `${serverUrl}/${path.basename(newPath)}`;
+      media.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     const ticket = new Ticket({
@@ -101,16 +99,16 @@ router.post('/', cpUpload, async (req, res) => {
       deadline,
       media,
       rights,
-      created_at: new Date() // Explicitly set created_at
+      created_at: new Date()
     });
 
     await ticket.save();
 
-    res.status(201).json({ 
-      message: 'Ticket created successfully.', 
+    res.status(201).json({
+      message: 'Ticket created successfully.',
       ticket: {
         ...ticket.toJSON(),
-        created_at: ticket.createdAt // Ensure created_at is included in response
+        created_at: ticket.createdAt
       }
     });
   } catch (error) {

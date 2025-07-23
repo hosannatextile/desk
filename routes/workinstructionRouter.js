@@ -58,15 +58,15 @@ router.post('/', cpUpload, async (req, res) => {
 
   try {
     if (req.files?.audio?.[0]) {
-      proof_media.audio_url = `/users_data/work_instructions/${req.files.audio[0].filename}`;
+      proof_media.audio_url = `/users_data/${req.files.audio[0].filename}`;
     }
 
     if (req.files?.video?.[0]) {
-      proof_media.video_url = `/users_data/work_instructions/${req.files.video[0].filename}`;
+      proof_media.video_url = `/users_data/${req.files.video[0].filename}`;
     }
 
     if (req.files?.image?.[0]) {
-      proof_media.image_url = `/users_data/work_instructions/${req.files.image[0].filename}`;
+      proof_media.image_url = `/users_data/${req.files.image[0].filename}`;
     }
 
     const workInstruction = new WorkInstruction({
@@ -161,13 +161,11 @@ router.get('/data/:user_id', async (req, res) => {
   const { user_id } = req.params;
   const { workinstruction_id, recipient_id } = req.query;
 
-  // Validate user_id
   if (!mongoose.Types.ObjectId.isValid(user_id)) {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
   try {
-    // Build query object
     const query = { user_id };
 
     if (workinstruction_id) {
@@ -181,15 +179,14 @@ router.get('/data/:user_id', async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(recipient_id)) {
         return res.status(400).json({ error: 'Invalid recipient_id format.' });
       }
-      query.recipient_ids = recipient_id; // match any in the array
+      query.recipient_ids = recipient_id;
     }
 
-    // Fetch WorkInstructions with populated fields
     const workInstructions = await WorkInstruction.find(query)
-      .populate('user_id', 'name')
-      .populate('recipient_ids', 'name');
+      .populate('user_id', 'fullName email')         // Include creator name + email
+      .populate('recipient_ids', 'fullName email');  // Include recipient names + email
 
-    res.json({ user_id, workInstructions });
+    res.json({ success: true, user_id, workInstructions });
   } catch (error) {
     console.error('Error fetching WorkInstructions:', error);
     res.status(500).json({ error: 'Internal server error.' });
