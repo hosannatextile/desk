@@ -121,14 +121,33 @@ router.post('/', cpUpload, async (req, res) => {
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
+  const { from, to } = req.query;
 
   if (!mongoose.Types.ObjectId.isValid(user_id)) {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
+  // Build match condition with optional date filtering
+  const matchConditions = {
+    user_id: new mongoose.Types.ObjectId(user_id)
+  };
+
+  if (from || to) {
+    matchConditions.created_at = {};
+    if (from) {
+      matchConditions.created_at.$gte = new Date(from);
+    }
+    if (to) {
+      // Include the whole day of 'to' by setting time to 23:59:59.999
+      const endOfTo = new Date(to);
+      endOfTo.setHours(23, 59, 59, 999);
+      matchConditions.created_at.$lte = endOfTo;
+    }
+  }
+
   try {
     const results = await Ticket.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(user_id) } },
+      { $match: matchConditions },
       {
         $facet: {
           typeCounts: [
