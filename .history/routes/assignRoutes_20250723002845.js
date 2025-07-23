@@ -351,21 +351,4 @@ router.get('/adminreport-count', async (req, res) => {
   }
 });
 
-
-// DELETE all assignments
-router.delete('/assignments/delete-all', async (req, res) => {
-  try {
-    const result = await Assign.deleteMany({});
-    res.status(200).json({
-      message: 'All assignments deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete assignments',
-      error: error.message,
-    });
-  }
-});
-
 module.exports = router;

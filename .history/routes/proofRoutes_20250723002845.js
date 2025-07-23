@@ -100,21 +100,4 @@ router.get('/:user_id', async (req, res) => {
   }
 });
 
-
-// DELETE all proof entries
-router.delete('/proofs/delete-all', async (req, res) => {
-  try {
-    const result = await Proof.deleteMany({});
-    res.status(200).json({
-      message: 'All proofs deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete proofs',
-      error: error.message,
-    });
-  }
-});
-
 module.exports = router;

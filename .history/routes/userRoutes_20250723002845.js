@@ -242,20 +242,4 @@ router.patch('/:id/last-seen', async (req, res) => {
   }
 });
 
-// DELETE all users
-router.delete('/users/delete-all', async (req, res) => {
-  try {
-    const result = await User.deleteMany({});
-    res.status(200).json({
-      message: 'All users deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete users',
-      error: error.message,
-    });
-  }
-});
-
 module.exports = router;

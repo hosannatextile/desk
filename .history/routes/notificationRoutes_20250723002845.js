@@ -148,19 +148,4 @@ router.post('/update-token', async (req, res) => {
   }
 });
 
-// DELETE all notifications
-router.delete('/notifications/delete-all', async (req, res) => {
-  try {
-    const result = await Notification.deleteMany({});
-    res.status(200).json({
-      message: 'All notifications deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete notifications',
-      error: error.message,
-    });
-  }
-});
 module.exports = router;

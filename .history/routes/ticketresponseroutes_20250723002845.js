@@ -144,20 +144,5 @@ router.get('/response', async (req, res) => {
   }
 });
 
-// DELETE all responses
-router.delete('/responses/delete-all', async (req, res) => {
-  try {
-    const result = await Response.deleteMany({});
-    res.status(200).json({
-      message: 'All responses deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete responses',
-      error: error.message,
-    });
-  }
-});
 
 module.exports = router;

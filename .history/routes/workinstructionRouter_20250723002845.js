@@ -195,21 +195,4 @@ router.get('/data/:user_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
-
-// DELETE all work instructions
-router.delete('/workinstructions/delete-all', async (req, res) => {
-  try {
-    const result = await WorkInstruction.deleteMany({});
-    res.status(200).json({
-      message: 'All work instructions deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete work instructions',
-      error: error.message,
-    });
-  }
-});
 module.exports = router;

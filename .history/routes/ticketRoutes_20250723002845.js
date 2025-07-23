@@ -686,20 +686,5 @@ router.get('/count-today/:user_id', async (req, res) => {
   }
 });
 
-// DELETE all tickets
-router.delete('/tickets/delete-all', async (req, res) => {
-  try {
-    const result = await Ticket.deleteMany({});
-    res.status(200).json({
-      message: 'All tickets deleted successfully',
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: 'Failed to delete tickets',
-      error: error.message,
-    });
-  }
-});
 
 module.exports = router;
