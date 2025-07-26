@@ -118,7 +118,6 @@ router.post('/', cpUpload, async (req, res) => {
 });
 
 
-
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
@@ -128,35 +127,30 @@ router.get('/summary/:user_id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
-  const matchBase = {
+  // Base match conditions (used in all queries)
+  const baseMatch = {
     user_id: new mongoose.Types.ObjectId(user_id)
   };
 
   if (from || to) {
-    matchBase.created_at = {};
+    baseMatch.created_at = {};
     if (from) {
-      matchBase.created_at.$gte = new Date(from);
+      baseMatch.created_at.$gte = new Date(from);
     }
     if (to) {
       const endOfTo = new Date(to);
       endOfTo.setHours(23, 59, 59, 999);
-      matchBase.created_at.$lte = endOfTo;
+      baseMatch.created_at.$lte = endOfTo;
     }
   }
 
   try {
-    // Match only Active or Pending tickets
-    const activePendingMatch = {
-      ...matchBase,
-      status: { $in: ['Active', 'Pending'] }
-    };
+    // 1. Fetch all tickets
+    const allTickets = await Ticket.find(baseMatch).lean();
 
-    // 1. Get all Active/Pending tickets
-    const activePendingTickets = await Ticket.find(activePendingMatch).lean();
-
-    // 2. Get type counts for Active/Pending tickets
+    // 2. Get typeCounts for only Active or Pending tickets
     const typeCounts = await Ticket.aggregate([
-      { $match: activePendingMatch },
+      { $match: { ...baseMatch, status: { $in: ['Active', 'Pending'] } } },
       {
         $group: {
           _id: '$type',
@@ -172,18 +166,20 @@ router.get('/summary/:user_id', async (req, res) => {
       }
     ]);
 
-    // 3. Count tickets with other statuses
+    // 3. Get count of tickets that are NOT Active or Pending
     const otherStatusCount = await Ticket.countDocuments({
-      ...matchBase,
+      ...baseMatch,
       status: { $nin: ['Active', 'Pending'] }
     });
 
+    // 4. Return response
     res.json({
       user_id,
-      tickets: activePendingTickets,
+      tickets: allTickets,
       typeCounts,
       otherStatusCount
     });
+
   } catch (error) {
     console.error('Error fetching summary:', error);
     res.status(500).json({ error: 'Internal server error.' });
