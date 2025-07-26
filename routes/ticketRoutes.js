@@ -127,7 +127,6 @@ router.get('/summary/:user_id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
-  // Base match conditions (used in all queries)
   const baseMatch = {
     user_id: new mongoose.Types.ObjectId(user_id)
   };
@@ -145,12 +144,17 @@ router.get('/summary/:user_id', async (req, res) => {
   }
 
   try {
-    // 1. Fetch all tickets
+    // 1. All tickets for the user
     const allTickets = await Ticket.find(baseMatch).lean();
 
-    // 2. Get typeCounts for only Active or Pending tickets
+    // 2. Count tickets by type where status is 'Active' or 'Pending'
     const typeCounts = await Ticket.aggregate([
-      { $match: { ...baseMatch, status: { $in: ['Active', 'Pending'] } } },
+      {
+        $match: {
+          ...baseMatch,
+          status: { $in: ['Active', 'Pending'] }
+        }
+      },
       {
         $group: {
           _id: '$type',
@@ -166,18 +170,19 @@ router.get('/summary/:user_id', async (req, res) => {
       }
     ]);
 
-    // 3. Get count of tickets that are NOT Active or Pending
-    const otherStatusCount = await Ticket.countDocuments({
+    // 3. Fetch ticket details for tickets that are NOT 'Active' or 'Pending'
+    const otherStatusTickets = await Ticket.find({
       ...baseMatch,
       status: { $nin: ['Active', 'Pending'] }
-    });
+    }).lean();
 
-    // 4. Return response
     res.json({
       user_id,
+      totalTickets: allTickets.length,
       tickets: allTickets,
       typeCounts,
-      otherStatusCount
+      otherStatusCount: otherStatusTickets.length,
+      otherStatusTickets
     });
 
   } catch (error) {
@@ -185,6 +190,7 @@ router.get('/summary/:user_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 
@@ -446,10 +452,9 @@ router.get('/recipient/totaltickets/:recipient_id', async (req, res) => {
   }
 
   try {
-    // Convert to ObjectId once
     const recipientObjectId = new mongoose.Types.ObjectId(recipient_id);
 
-    // 1. Find all matching tickets
+    // 1. Fetch all tickets for recipient
     const tickets = await Ticket.find({ recipient_ids: recipientObjectId })
       .populate('user_id', 'fullName')
       .sort({ createdAt: -1 });
@@ -470,25 +475,26 @@ router.get('/recipient/totaltickets/:recipient_id', async (req, res) => {
       }
     ]);
 
-    // Format typeCounts to object
+    // 3. Format typeCounts into object
     const countsByType = {};
     typeCounts.forEach(item => {
       countsByType[item._id] = item.count;
     });
 
-    // 3. Count of tickets with other statuses
-    const otherStatusCount = await Ticket.countDocuments({
+    // 4. Fetch tickets with other statuses (NOT Active or Pending)
+    const otherStatusTickets = await Ticket.find({
       recipient_ids: recipientObjectId,
       status: { $nin: ['Active', 'Pending'] }
-    });
+    }).populate('user_id', 'fullName');
 
-    // 4. Return response
+    // 5. Return response
     res.status(200).json({
       recipient_id,
       total_tickets: tickets.length,
       tickets,
       type_counts: countsByType,
-      otherStatusCount
+      otherStatusCount: otherStatusTickets.length,
+      otherStatusTickets
     });
 
   } catch (error) {
@@ -496,6 +502,7 @@ router.get('/recipient/totaltickets/:recipient_id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 
