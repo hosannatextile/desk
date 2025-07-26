@@ -118,6 +118,7 @@ router.post('/', cpUpload, async (req, res) => {
 });
 
 
+
 // Dashboard counts for a user
 router.get('/summary/:user_id', async (req, res) => {
   const { user_id } = req.params;
@@ -127,78 +128,68 @@ router.get('/summary/:user_id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
-  // Build match condition with optional date filtering
-  const matchConditions = {
+  const matchBase = {
     user_id: new mongoose.Types.ObjectId(user_id)
   };
 
   if (from || to) {
-    matchConditions.created_at = {};
+    matchBase.created_at = {};
     if (from) {
-      matchConditions.created_at.$gte = new Date(from);
+      matchBase.created_at.$gte = new Date(from);
     }
     if (to) {
-      // Include the whole day of 'to' by setting time to 23:59:59.999
       const endOfTo = new Date(to);
       endOfTo.setHours(23, 59, 59, 999);
-      matchConditions.created_at.$lte = endOfTo;
+      matchBase.created_at.$lte = endOfTo;
     }
   }
 
   try {
-    const results = await Ticket.aggregate([
-      { $match: matchConditions },
+    // Match only Active or Pending tickets
+    const activePendingMatch = {
+      ...matchBase,
+      status: { $in: ['Active', 'Pending'] }
+    };
+
+    // 1. Get all Active/Pending tickets
+    const activePendingTickets = await Ticket.find(activePendingMatch).lean();
+
+    // 2. Get type counts for Active/Pending tickets
+    const typeCounts = await Ticket.aggregate([
+      { $match: activePendingMatch },
       {
-        $facet: {
-          typeCounts: [
-            {
-              $group: {
-                _id: '$type',
-                count: { $sum: 1 }
-              }
-            },
-            {
-              $project: {
-                _id: 0,
-                type: '$_id',
-                count: 1
-              }
-            }
-          ],
-          statusCounts: [
-            {
-              $group: {
-                _id: '$status',
-                count: { $sum: 1 }
-              }
-            },
-            {
-              $project: {
-                _id: 0,
-                status: '$_id',
-                count: 1
-              }
-            }
-          ],
-          timeLogs: [
-            {
-              $project: {
-                _id: 0,
-                created_at: 1
-              }
-            }
-          ]
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          type: '$_id',
+          count: 1
         }
       }
     ]);
 
-    const { typeCounts = [], statusCounts = [], timeLogs = [] } = results[0] || {};
-    res.json({ user_id, typeCounts, statusCounts, timeLogs });
+    // 3. Count tickets with other statuses
+    const otherStatusCount = await Ticket.countDocuments({
+      ...matchBase,
+      status: { $nin: ['Active', 'Pending'] }
+    });
+
+    res.json({
+      user_id,
+      tickets: activePendingTickets,
+      typeCounts,
+      otherStatusCount
+    });
   } catch (error) {
     console.error('Error fetching summary:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 router.get('/filter', async (req, res) => {
