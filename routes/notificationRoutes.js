@@ -5,10 +5,11 @@ const User = require('../models/user');
 const admin = require('../firebase/firebase'); // Firebase initialized
 
 router.post('/', async (req, res) => {
-  const { receiver_id, sender_id, type, description } = req.body;
+  const { receiver_id, sender_id, type, description, body } = req.body;
 
+  // Validate required fields
   if (!receiver_id || !sender_id || !type || !description) {
-    return res.status(400).json({ error: 'All fields are required.' });
+    return res.status(400).json({ error: 'All fields (receiver_id, sender_id, type, description) are required.' });
   }
 
   const validTypes = ['message', 'alert', 'request', 'info'];
@@ -17,29 +18,37 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    // Step 1: Save to DB
+    // Step 1: Get receiver and sender
+    const receiver = await User.findById(receiver_id);
+    const sender = await User.findById(sender_id).select('fullName');
+
+    if (!receiver) {
+      return res.status(404).json({ error: 'Receiver not found.' });
+    }
+
+    // Step 2: Create and save the notification
     const notification = new Notification({
       receiver_id,
       sender_id,
       type,
-      description
+      description,
+      body,
+      status: 'unread',
+      datetime: new Date(),
+      fcm_token: receiver.fcm_token || null
     });
 
     await notification.save();
 
-    // Step 2: Get receiver's FCM token
-    const receiver = await User.findById(receiver_id);
-    const sender = await User.findById(sender_id).select('fullName');
-
-    if (!receiver || !receiver.fcm_token) {
+    // Step 3: Send FCM notification if token exists
+    if (!receiver.fcm_token) {
       console.warn('Receiver FCM token not found, skipping push notification.');
     } else {
-      // Step 3: Send FCM Push Notification
       const message = {
         token: receiver.fcm_token,
         notification: {
           title: `${type.toUpperCase()} from ${sender?.fullName || 'User'}`,
-          body: description,
+          body: body || description,
         },
         data: {
           type,
@@ -52,15 +61,18 @@ router.post('/', async (req, res) => {
       await admin.messaging().send(message);
     }
 
+    // Step 4: Respond with success
     res.status(201).json({
       message: 'Notification created successfully',
       notification
     });
+
   } catch (error) {
     console.error('Error creating notification:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 router.get('/', async (req, res) => {

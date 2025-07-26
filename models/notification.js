@@ -30,6 +30,9 @@ const notificationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  body:{
+    type: String,
+  },
   fcm_token: { type: String }
 }, { timestamps: true });
 
