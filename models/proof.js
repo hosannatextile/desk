@@ -10,21 +10,20 @@ const ProofSchema = new Schema({
   user_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
   },
   recipient_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    
   },
   workinstruction_id:{
     type: Schema.Types.ObjectId,
     ref: 'WorkInstruction',
-    required: true
+    
   },
   recipient_name: {
     type: String,
-    required: true
+    
   },
   proof_media: {
     voice_note_url: String,

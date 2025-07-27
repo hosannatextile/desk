@@ -32,50 +32,49 @@ const cpUpload = upload.fields([
 router.post('/', cpUpload, async (req, res) => {
   const { ticket, user_id, recipient_id, worinstruction_id, recipient_name, remarks } = req.body;
 
-  // Validate required fields
-  if (!ticket || !user_id || !recipient_id || !worinstruction_id || !recipient_name) {
-    return res.status(400).json({ error: 'Missing required fields: ticket, user_id, recipient_id, worinstruction_id, and recipient_name are required.' });
+  // Only ticket is required
+  if (!ticket) {
+    return res.status(400).json({ error: 'Missing required field: ticket is required.' });
   }
 
   const proof_media = {};
-  const serverPath = `/users_data/proofs/`;
+  const serverPath = `/users_data/`;
 
   try {
-    // Handle file uploads
-    if (req.files.voice_note) {
+    // Check and attach optional media
+    if (req.files && req.files.voice_note && req.files.voice_note.length > 0) {
       const file = req.files.voice_note[0];
       proof_media.voice_note_url = `${serverPath}${file.filename}`;
     }
 
-    if (req.files.image) {
+    if (req.files && req.files.image && req.files.image.length > 0) {
       const file = req.files.image[0];
       proof_media.image_url = `${serverPath}${file.filename}`;
     }
 
-    if (req.files.video) {
+    if (req.files && req.files.video && req.files.video.length > 0) {
       const file = req.files.video[0];
       proof_media.video_url = `${serverPath}${file.filename}`;
     }
 
-    // Create new Proof document
+    // Create new Proof document with optional fields
     const proof = new Proof({
       ticket,
-      user_id,
-      recipient_id,
-      worinstruction_id,
-      recipient_name,
-      proof_media,
-      rmarks: remarks // Map remarks to rmarks
+      user_id: user_id || null,
+      recipient_id: recipient_id || null,
+      worinstruction_id: worinstruction_id || null,
+      recipient_name: recipient_name || null,
+      proof_media: Object.keys(proof_media).length > 0 ? proof_media : null,
+      rmarks: remarks || null
     });
 
     await proof.save();
 
-    // Return response with created_at
     res.status(201).json({
       message: 'Proof saved successfully.',
       proof: {
         ...proof.toJSON(),
-        created_at: proof.created_at // Ensure created_at is included
+        created_at: proof.created_at
       }
     });
   } catch (error) {
@@ -86,19 +85,32 @@ router.post('/', cpUpload, async (req, res) => {
 
 
 
+
 // 📤 GET /api/proofs/:user_id - Get proofs by user_id
-router.get('/:user_id', async (req, res) => {
-  const { user_id } = req.params;
+router.get('/', async (req, res) => {
+  const { user_id, ticket } = req.query;
 
   try {
-    const proofs = await Proof.find({ user_id }).populate('ticket', 'type description status').populate('recipient_id', 'name');
+    // Build dynamic filter
+    const filter = {};
+    if (user_id && mongoose.Types.ObjectId.isValid(user_id)) {
+      filter.user_id = user_id;
+    }
+    if (ticket && mongoose.Types.ObjectId.isValid(ticket)) {
+      filter.ticket = ticket;
+    }
 
-    res.json({ user_id, proofs });
+    const proofs = await Proof.find(filter)
+      .populate('ticket', 'type description status')
+      .populate('recipient_id', 'name');
+
+    res.json({ proofs });
   } catch (error) {
     console.error('Error fetching proofs:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 // DELETE all proof entries
