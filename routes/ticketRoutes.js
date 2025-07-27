@@ -262,27 +262,28 @@ router.get('/filter', async (req, res) => {
 router.get('/filtertwo', async (req, res) => {
   const { user_id, manager_id } = req.query;
 
-  if (!user_id || !manager_id) {
-    return res.status(400).json({ error: 'user_id and manager_id are required.' });
-  }
-
-  if (!mongoose.Types.ObjectId.isValid(user_id) || !mongoose.Types.ObjectId.isValid(manager_id)) {
+  // Validate ObjectId format if provided
+  if ((user_id && !mongoose.Types.ObjectId.isValid(user_id)) ||
+      (manager_id && !mongoose.Types.ObjectId.isValid(manager_id))) {
     return res.status(400).json({ error: 'Invalid ObjectId format.' });
   }
 
   try {
-    // 1. Find Assignments where user_id is manager and assign_to includes user_id
-    const assigns = await Assign.find({
-      user_id: manager_id,
-      assign_to: user_id
-    }).lean();
+    // Build dynamic filter
+    const assignFilter = {};
+    if (manager_id) assignFilter.user_id = manager_id;
+    if (user_id) assignFilter.assign_to = user_id;
+
+    // 1. Find Assignments
+    const assigns = await Assign.find(assignFilter).lean();
 
     const ticketIds = assigns.map(a => a.ticket_id);
     const assignToUserIds = [...new Set(assigns.flatMap(a => a.assign_to.map(id => id.toString())))];
 
     // 2. Get full User details for assign_to users
     const assignToUsersMap = {};
-    const assignToUsers = await User.find({ _id: { $in: assignToUserIds } }).select('fullName email role department');
+    const assignToUsers = await User.find({ _id: { $in: assignToUserIds } })
+      .select('fullName email role department');
     assignToUsers.forEach(user => {
       assignToUsersMap[user._id.toString()] = user;
     });
@@ -345,7 +346,6 @@ router.get('/filtertwo', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
 
 
 
