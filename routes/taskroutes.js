@@ -84,29 +84,24 @@ router.get('/assign', async (req, res) => {
   try {
     const { user_id, recipient_id, status } = req.query;
 
-    if (!user_id) {
-      return res.status(400).json({ success: false, message: "user_id is required" });
+    let taskFilter = {};
+
+    // Build dynamic OR condition if user_id and/or recipient_id is provided
+    let orConditions = [];
+
+    if (user_id) {
+      orConditions.push({ user_id });
     }
 
-    let taskFilter;
-
-    // Build filter based on recipient_id presence
     if (recipient_id) {
-      taskFilter = {
-        $or: [
-          { user_id: user_id },
-          { assign_to: recipient_id }
-        ]
-      };
-    } else {
-      taskFilter = {
-        $or: [
-          { user_id: user_id },
-          { assign_to: user_id }
-        ]
-      };
+      orConditions.push({ assign_to: recipient_id });
     }
 
+    if (orConditions.length > 0) {
+      taskFilter.$or = orConditions;
+    }
+
+    // Add status filter if provided
     if (status) {
       taskFilter.status = status;
     }
@@ -115,6 +110,7 @@ router.get('/assign', async (req, res) => {
       .populate('user_id', 'fullName')
       .populate('assign_to', 'fullName');
 
+    // Get unique creator IDs from the tasks
     const creatorIds = [
       ...new Set(tasks.map(task => task.user_id?._id?.toString()).filter(Boolean))
     ];
@@ -134,6 +130,7 @@ router.get('/assign', async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+
 
 
 router.get('/tasks/recipient', async (req, res) => {
