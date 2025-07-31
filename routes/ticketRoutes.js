@@ -195,7 +195,7 @@ router.get('/summary/:user_id', async (req, res) => {
 
 
 router.get('/filter', async (req, res) => {
-  const { user_id, status, date } = req.query;
+  const { user_id, status, from, to } = req.query;
 
   if (!user_id || !status) {
     return res.status(400).json({ error: 'user_id and status are required.' });
@@ -208,13 +208,13 @@ router.get('/filter', async (req, res) => {
   try {
     let startDate, endDate;
 
-    if (date) {
-      // If date is provided, use that day's full range
-      const selectedDate = new Date(date);
-      startDate = new Date(selectedDate.setHours(0, 0, 0, 0));
-      endDate = new Date(selectedDate.setHours(23, 59, 59, 999));
+    if (from && to) {
+      startDate = new Date(from);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(to);
+      endDate.setHours(23, 59, 59, 999);
     } else {
-      // If no date, get from 1st of current month to today
       const today = new Date();
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       endDate = new Date(); // now
@@ -232,11 +232,6 @@ router.get('/filter', async (req, res) => {
     const enrichedTickets = [];
 
     for (const ticket of tickets) {
-      const recipientInfo = ticket.recipient_ids.map(r => ({
-        recipient_id: r._id,
-        fullName: r.fullName
-      }));
-
       const assignInfo = [];
 
       for (const recipient of ticket.recipient_ids) {
@@ -276,6 +271,7 @@ router.get('/filter', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 router.get('/filtertwo', async (req, res) => {
