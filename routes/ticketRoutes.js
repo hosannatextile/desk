@@ -195,20 +195,39 @@ router.get('/summary/:user_id', async (req, res) => {
 
 
 router.get('/filter', async (req, res) => {
-  const { user_id, status } = req.query;
+  const { user_id, status, date } = req.query;
 
   if (!user_id || !status) {
     return res.status(400).json({ error: 'user_id and status are required.' });
   }
+
   if (!mongoose.Types.ObjectId.isValid(user_id)) {
     return res.status(400).json({ error: 'Invalid user_id format.' });
   }
 
   try {
-    const tickets = await Ticket.find({ user_id, status })
+    let startDate, endDate;
+
+    if (date) {
+      // If date is provided, use that day's full range
+      const selectedDate = new Date(date);
+      startDate = new Date(selectedDate.setHours(0, 0, 0, 0));
+      endDate = new Date(selectedDate.setHours(23, 59, 59, 999));
+    } else {
+      // If no date, get from 1st of current month to today
+      const today = new Date();
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(); // now
+    }
+
+    const tickets = await Ticket.find({
+      user_id,
+      status,
+      created_at: { $gte: startDate, $lte: endDate }
+    })
       .select('type description priority deadline media status created_at recipient_ids user_id')
       .populate('recipient_ids', 'fullName')
-      .populate('user_id', 'fullName email role department'); // ✅ populate creator
+      .populate('user_id', 'fullName email role department');
 
     const enrichedTickets = [];
 
