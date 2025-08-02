@@ -12,6 +12,8 @@ const management_wi= require('./routes/management_wi_routes')
 const forgotpass = require('./routes/forgotpasswordRoutes')
 const assign= require('./routes/assignRoutes')
 const task= require('./routes/taskroutes')
+const satisfy= require('./routes/satisfyroute')
+const remind= require('./routes/reminderroutes')
 
 // const admin = require('../firebase'); // Firebase initialized
 const ticketresponse = require('./routes/ticketresponseroutes')
@@ -35,6 +37,8 @@ app.use('/api/forgotpass', forgotpass);
 app.use('/api/assign', assign);
 app.use('/api/ticketResponse', ticketresponse);
 app.use('/api/task', task);
+app.use('/api/remind', remind);
+app.use('/api/satisfy', satisfy);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/users_data', express.static(path.join(__dirname, 'users_data')));
 
