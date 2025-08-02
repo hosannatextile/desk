@@ -253,13 +253,15 @@ router.get('/filter', async (req, res) => {
             priority: assignRecord.priority,
             targetget_date: assignRecord.targetget_date,
             status: assignRecord.status,
-            created_at: assignRecord.created_at
+            created_at: assignRecord.created_at // You can add +5 hours here if needed
+            // created_at: new Date(new Date(assignRecord.created_at).getTime() + 5 * 60 * 60 * 1000)
           });
         }
       }
 
       enrichedTickets.push({
         ...ticket.toJSON(),
+        created_at: new Date(new Date(ticket.created_at).getTime() + 5 * 60 * 60 * 1000), // Add 5 hours
         assignInfo,
       });
     }
@@ -277,38 +279,33 @@ router.get('/filter', async (req, res) => {
 router.get('/filtertwo', async (req, res) => {
   const { user_id, manager_id } = req.query;
 
-  // Validate ObjectId format if provided
   if ((user_id && !mongoose.Types.ObjectId.isValid(user_id)) ||
       (manager_id && !mongoose.Types.ObjectId.isValid(manager_id))) {
     return res.status(400).json({ error: 'Invalid ObjectId format.' });
   }
 
   try {
-    // Build dynamic filter
     const assignFilter = {};
     if (manager_id) assignFilter.user_id = manager_id;
     if (user_id) assignFilter.assign_to = user_id;
 
-    // 1. Find Assignments
     const assigns = await Assign.find(assignFilter).lean();
 
     const ticketIds = assigns.map(a => a.ticket_id);
     const assignToUserIds = [...new Set(assigns.flatMap(a => a.assign_to.map(id => id.toString())))];
 
-    // 2. Get full User details for assign_to users
     const assignToUsersMap = {};
     const assignToUsers = await User.find({ _id: { $in: assignToUserIds } })
       .select('fullName email role department');
+
     assignToUsers.forEach(user => {
       assignToUsersMap[user._id.toString()] = user;
     });
 
-    // 3. Get corresponding Tickets and populate
     const tickets = await Ticket.find({ _id: { $in: ticketIds } })
       .populate('recipient_ids', 'fullName')
       .populate('user_id', 'fullName email role department');
 
-    // 4. Enrich ticket data
     const enriched = tickets.map(ticket => {
       const assignRecord = assigns.find(a => a.ticket_id?.toString() === ticket._id.toString());
 
@@ -320,7 +317,7 @@ router.get('/filtertwo', async (req, res) => {
         deadline: ticket.deadline,
         media: ticket.media,
         status: ticket.status,
-        created_at: ticket.created_at,
+        created_at: new Date(new Date(ticket.created_at).getTime() + 5 * 60 * 60 * 1000), // ⬅️ +5h
 
         recipients: ticket.recipient_ids.map(r => ({
           recipient_id: r._id,
@@ -341,7 +338,8 @@ router.get('/filtertwo', async (req, res) => {
           priority: assignRecord.priority,
           targetget_date: assignRecord.targetget_date,
           status: assignRecord.status,
-          created_at: assignRecord.created_at
+          created_at: assignRecord.created_at // or add +5h like below:
+          // created_at: new Date(new Date(assignRecord.created_at).getTime() + 5 * 60 * 60 * 1000)
         } : null,
 
         created_by: {
