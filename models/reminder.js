@@ -16,10 +16,6 @@ const Reminderschema = new Schema({
     ref: 'User',
     
   },
-  recipient_name: {
-    type: String,
-    
-  },
   count: {
     type: String,
   }

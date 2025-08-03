@@ -3,10 +3,10 @@ const router = express.Router();
 const Reminder = require('../models/reminder'); // Adjust path as needed
 
 router.post('/reminder', async (req, res) => {
-  const { ticket, user_id, recipient_id, recipient_name } = req.body;
+  const { ticket, user_id, recipient_id } = req.body;
 
-  if (!ticket || !user_id || !recipient_id || !recipient_name) {
-    return res.status(400).json({ error: 'ticket, user_id, recipient_id, and recipient_name are required.' });
+  if (!ticket || !user_id || !recipient_id) {
+    return res.status(400).json({ error: 'ticket, user_id, recipient_id, are required.' });
   }
 
   try {
@@ -27,7 +27,6 @@ router.post('/reminder', async (req, res) => {
         ticket,
         user_id,
         recipient_id,
-        recipient_name,
         count: '1'
       });
 

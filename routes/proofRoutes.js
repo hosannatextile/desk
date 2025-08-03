@@ -91,14 +91,18 @@ router.get('/', async (req, res) => {
   const { user_id, ticket } = req.query;
 
   try {
+    // Validate ObjectId formats
+    if (user_id && !mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({ error: 'Invalid user_id format.' });
+    }
+    if (ticket && !mongoose.Types.ObjectId.isValid(ticket)) {
+      return res.status(400).json({ error: 'Invalid ticket format.' });
+    }
+
     // Build dynamic filter
     const filter = {};
-    if (user_id && mongoose.Types.ObjectId.isValid(user_id)) {
-      filter.user_id = user_id;
-    }
-    if (ticket && mongoose.Types.ObjectId.isValid(ticket)) {
-      filter.ticket = ticket;
-    }
+    if (user_id) filter.user_id = user_id;
+    if (ticket) filter.ticket = ticket;
 
     const proofs = await Proof.find(filter)
       .populate('ticket', 'type description status')
