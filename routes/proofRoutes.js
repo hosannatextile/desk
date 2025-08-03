@@ -87,31 +87,28 @@ router.post('/', cpUpload, async (req, res) => {
 
 
 // 📤 GET /api/proofs/:user_id - Get proofs by user_id
-router.get('/', async (req, res) => {
-  const { user_id, ticket } = req.query;
+router.get('/proofs', async (req, res) => {
+  const { user_id, ticket_id } = req.query;
+
+  // Validate input
+  if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
+    return res.status(400).json({ error: 'Valid user_id is required.' });
+  }
+  if (!ticket_id || !mongoose.Types.ObjectId.isValid(ticket_id)) {
+    return res.status(400).json({ error: 'Valid ticket_id is required.' });
+  }
 
   try {
-    // Validate ObjectId formats
-    if (user_id && !mongoose.Types.ObjectId.isValid(user_id)) {
-      return res.status(400).json({ error: 'Invalid user_id format.' });
-    }
-    if (ticket && !mongoose.Types.ObjectId.isValid(ticket)) {
-      return res.status(400).json({ error: 'Invalid ticket format.' });
-    }
-
-    // Build dynamic filter
-    const filter = {};
-    if (user_id) filter.user_id = user_id;
-    if (ticket) filter.ticket = ticket;
-
-    const proofs = await Proof.find(filter)
+    const proofs = await Proof.find({ user_id, ticket: ticket_id })
       .populate('ticket', 'type description status')
-      .populate('recipient_id', 'name');
+      .populate('recipient_id', 'name')
+      .populate('workinstruction_id', 'title') // if needed
+      .sort({ updated_at: -1 });
 
-    res.json({ proofs });
+    return res.status(200).json({ count: proofs.length, proofs });
   } catch (error) {
     console.error('Error fetching proofs:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+    return res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
