@@ -90,16 +90,22 @@ router.post('/', cpUpload, async (req, res) => {
 router.get('/proofs', async (req, res) => {
   const { user_id, ticket_id } = req.query;
 
-  // Validate input
+  // Validate user_id only
   if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
     return res.status(400).json({ error: 'Valid user_id is required.' });
   }
-  if (!ticket_id || !mongoose.Types.ObjectId.isValid(ticket_id)) {
-    return res.status(400).json({ error: 'Valid ticket_id is required.' });
+
+  // Build query object
+  const query = { user_id };
+  if (ticket_id) {
+    if (!mongoose.Types.ObjectId.isValid(ticket_id)) {
+      return res.status(400).json({ error: 'Invalid ticket_id format.' });
+    }
+    query.ticket = ticket_id;
   }
 
   try {
-    const proofs = await Proof.find({ user_id, ticket: ticket_id })
+    const proofs = await Proof.find(query)
       .populate('ticket', 'type description status')
       .populate('recipient_id', 'name')
       .populate('workinstruction_id', 'title') // if needed
@@ -111,6 +117,7 @@ router.get('/proofs', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 
