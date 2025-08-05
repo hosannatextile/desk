@@ -6,9 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const Proof = require('../models/proof');
 
-const uploadDir = path.join(__dirname, '..', 'users_data', 'proofs');
+const uploadDir = path.join(__dirname, '..', 'users_data');
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDir);
 }
 
 // Multer storage config
@@ -31,56 +31,73 @@ const cpUpload = upload.fields([
 
 // 📥 POST /api/proofs - Insert proof data
 router.post('/', cpUpload, async (req, res) => {
-  const { ticket, user_id, recipient_id, worinstruction_id, recipient_name, remarks } = req.body;
-
-  // Only ticket is required
-  if (!ticket) {
-    return res.status(400).json({ error: 'Missing required field: ticket is required.' });
-  }
-
-  const proof_media = {};
-  const serverPath = `/users_data/`;
-
   try {
-    // Check and attach optional media
-    if (req.files && req.files.voice_note && req.files.voice_note.length > 0) {
+    const {
+      ticket,
+      user_id,
+      recipient_id,
+      worinstruction_id,
+      recipient_name,
+      remarks
+    } = req.body;
+
+    if (!ticket) {
+      return res.status(400).json({ error: 'Missing required field: ticket' });
+    }
+
+    const media_type = {};
+    const uniqueSuffix = Date.now();
+    const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+    // ✅ Save voice note as .mp3
+    if (req.files.voice_note && req.files.voice_note.length > 0) {
       const file = req.files.voice_note[0];
-      proof_media.voice_note_url = `${serverPath}${file.filename}`;
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice.mp3`);
+      fs.renameSync(file.path, newPath);
+      media_type.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    if (req.files && req.files.image && req.files.image.length > 0) {
-      const file = req.files.image[0];
-      proof_media.image_url = `${serverPath}${file.filename}`;
-    }
-
-    if (req.files && req.files.video && req.files.video.length > 0) {
+    // ✅ Save video as .mp4
+    if (req.files.video && req.files.video.length > 0) {
       const file = req.files.video[0];
-      proof_media.video_url = `${serverPath}${file.filename}`;
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_video.mp4`);
+      fs.renameSync(file.path, newPath);
+      media_type.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    // Create new Proof document with optional fields
-    const proof = new Proof({
+    // ✅ Save image as .jpg
+    if (req.files.image && req.files.image.length > 0) {
+      const file = req.files.image[0];
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_image.jpg`);
+      fs.renameSync(file.path, newPath);
+      media_type.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
+    }
+
+    // ✅ Save the Proof document
+    const newProof = new Proof({
       ticket,
       user_id: user_id || null,
       recipient_id: recipient_id || null,
       worinstruction_id: worinstruction_id || null,
       recipient_name: recipient_name || null,
-      proof_media: Object.keys(proof_media).length > 0 ? proof_media : null,
+      proof_media: Object.keys(media_type).length > 0 ? media_type : null,
       rmarks: remarks || null
     });
 
-    await proof.save();
+    const savedProof = await newProof.save();
 
     res.status(201).json({
+      success: true,
       message: 'Proof saved successfully.',
       proof: {
-        ...proof.toJSON(),
-        created_at: proof.created_at
+        ...savedProof.toJSON(),
+        created_at: savedProof.created_at
       }
     });
-  } catch (error) {
-    console.error('Error saving proof:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+
+  } catch (err) {
+    console.error('Error saving proof:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 
