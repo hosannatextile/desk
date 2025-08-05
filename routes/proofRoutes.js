@@ -106,27 +106,29 @@ router.post('/', cpUpload, async (req, res) => {
 
 // 📤 GET /api/proofs/:user_id - Get proofs by user_id
 router.get('/proofs', async (req, res) => {
-  const { user_id, ticket_id } = req.query;
+  const { user_id, workinstruction_id } = req.query;
 
-  // Validate user_id only
+  // Validate user_id
   if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
     return res.status(400).json({ error: 'Valid user_id is required.' });
   }
 
   // Build query object
   const query = { user_id };
-  if (ticket_id) {
-    if (!mongoose.Types.ObjectId.isValid(ticket_id)) {
-      return res.status(400).json({ error: 'Invalid ticket_id format.' });
+  
+  // Optional: filter by workinstruction_id
+  if (workinstruction_id) {
+    if (!mongoose.Types.ObjectId.isValid(workinstruction_id)) {
+      return res.status(400).json({ error: 'Invalid workinstruction_id format.' });
     }
-    query.ticket = ticket_id;
+    query.workinstruction_id = workinstruction_id;
   }
 
   try {
     const proofs = await Proof.find(query)
       .populate('ticket', 'type description status')
       .populate('recipient_id', 'name')
-      .populate('workinstruction_id', 'title') // if needed
+      .populate('workinstruction_id', 'title')
       .sort({ updated_at: -1 });
 
     return res.status(200).json({ count: proofs.length, proofs });
@@ -135,8 +137,6 @@ router.get('/proofs', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
-
 
 
 // DELETE all proof entries
