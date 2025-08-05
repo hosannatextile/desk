@@ -131,7 +131,14 @@ router.get('/proofs', async (req, res) => {
       .populate('workinstruction_id', 'title')
       .sort({ updated_at: -1 });
 
-    return res.status(200).json({ count: proofs.length, proofs });
+    // Add 5 hours to created_at
+    const updatedProofs = proofs.map(proof => {
+      const proofObj = proof.toObject();
+      proofObj.created_at = new Date(new Date(proof.created_at).getTime() + 5 * 60 * 60 * 1000); // Add 5 hours
+      return proofObj;
+    });
+
+    return res.status(200).json({ count: updatedProofs.length, proofs: updatedProofs });
   } catch (error) {
     console.error('Error fetching proofs:', error);
     return res.status(500).json({ error: 'Internal server error.' });
