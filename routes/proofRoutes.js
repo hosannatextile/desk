@@ -36,7 +36,7 @@ router.post('/', cpUpload, async (req, res) => {
       ticket,
       user_id,
       recipient_id,
-      worinstruction_id,
+      workinstruction_id,
       recipient_name,
       remarks
     } = req.body;
@@ -78,7 +78,7 @@ router.post('/', cpUpload, async (req, res) => {
       ticket,
       user_id: user_id || null,
       recipient_id: recipient_id || null,
-      worinstruction_id: worinstruction_id || null,
+      workinstruction_id: workinstruction_id || null,
       recipient_name: recipient_name || null,
       proof_media: Object.keys(media_type).length > 0 ? media_type : null,
       rmarks: remarks || null
