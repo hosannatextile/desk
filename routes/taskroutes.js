@@ -174,8 +174,8 @@ router.get('/tasks/recipient', async (req, res) => {
     }
 
     const tasks = await Task.find(query)
-      .populate('user_id', 'name email')        // Optional: populate task creator
-      .populate('assign_to', 'name email');     // Optional: populate assigned users
+      .populate('user_id', 'fullName role email')   // Task creator: get fullName & role
+      .populate('assign_to', 'fullName role email'); // Assigned user: get fullName & role
 
     res.json({ success: true, data: tasks });
   } catch (err) {

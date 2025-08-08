@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Proof = require('../models/proof');
+const User = require('../models/user');
 
 const uploadDir = path.join(__dirname, '..', 'users_data');
 if (!fs.existsSync(uploadDir)) {
@@ -127,7 +128,8 @@ router.get('/proofs', async (req, res) => {
   try {
     const proofs = await Proof.find(query)
       .populate('ticket', 'type description status')
-      .populate('recipient_id', 'name')
+      .populate('recipient_id', 'fullName role')  // Recipient's name & role
+      .populate('user_id', 'fullName role')       // Creator's name & role
       .populate('workinstruction_id', 'title')
       .sort({ updated_at: -1 });
 
