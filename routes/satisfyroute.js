@@ -62,21 +62,21 @@ router.post('/response', cpUpload, async (req, res) => {
       const file = req.files.voice_note[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
-      media.voice_note_url = `${serverUrl}/uploads/${path.basename(newPath)}`;
+      media.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     if (req.files.video) {
       const file = req.files.video[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
-      media.video_url = `${serverUrl}/uploads/${path.basename(newPath)}`;
+      media.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     if (req.files.image) {
       const file = req.files.image[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
-      media.image_url = `${serverUrl}/uploads/${path.basename(newPath)}`;
+      media.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
     const Satisfy = new satisfy({
@@ -144,6 +144,73 @@ router.get('/response', async (req, res) => {
     });
   }
 });
+
+
+
+router.put('/satisfy/:id', cpUpload, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid satisfy ID format' });
+    }
+
+    // Allowed fields to update (deadline excluded)
+    const updateData = {};
+    const allowedFields = ['type', 'description', 'priority', 'status', 'rights'];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Handle media uploads
+    const media = {};
+    const uniqueSuffix = Date.now();
+    const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+    if (req.files.voice_note) {
+      const file = req.files.voice_note[0];
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
+      fs.renameSync(file.path, newPath);
+      media.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
+    }
+
+    if (req.files.video) {
+      const file = req.files.video[0];
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
+      fs.renameSync(file.path, newPath);
+      media.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
+    }
+
+    if (req.files.image) {
+      const file = req.files.image[0];
+      const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
+      fs.renameSync(file.path, newPath);
+      media.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
+    }
+
+    if (Object.keys(media).length > 0) {
+      updateData.media = media;
+    }
+
+    // Update document
+    const updatedSatisfy = await satisfy.findByIdAndUpdate(id, updateData, { new: true });
+
+    if (!updatedSatisfy) {
+      return res.status(404).json({ success: false, message: 'Satisfy record not found' });
+    }
+
+    res.json({ success: true, message: 'Satisfy record updated successfully', data: updatedSatisfy });
+  } catch (error) {
+    console.error('Error updating satisfy record:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
 
 // DELETE all responses
 router.delete('/responses/delete-all', async (req, res) => {
