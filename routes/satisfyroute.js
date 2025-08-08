@@ -39,8 +39,6 @@ router.post('/response', cpUpload, async (req, res) => {
     type,
     description,
     priority,
-    deadline,
-    rights
   } = req.body;
 
   if (!user_id || !response_person_id || !ticket_id || !type || !description || !priority) {
@@ -86,9 +84,7 @@ router.post('/response', cpUpload, async (req, res) => {
       type,
       description,
       priority,
-      deadline,
       media,
-      rights
     });
 
     await Satisfy.save();
