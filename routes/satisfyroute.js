@@ -38,17 +38,12 @@ router.post('/response', cpUpload, async (req, res) => {
     ticket_id,
     type,
     description,
-    priority,
+    priority
   } = req.body;
 
+  // Required field check
   if (!user_id || !response_person_id || !ticket_id || !type || !description || !priority) {
     return res.status(400).json({ error: 'Missing required fields.' });
-  }
-
-  // Validate 'rights' enum
-  const validRights = ['View', 'Forward', 'Power'];
-  if (rights && !validRights.includes(rights)) {
-    return res.status(400).json({ error: 'Invalid value for rights. Must be View, Forward, or Power.' });
   }
 
   const media = {};
@@ -56,6 +51,7 @@ router.post('/response', cpUpload, async (req, res) => {
   const serverUrl = `${req.protocol}://${req.get('host')}`;
 
   try {
+    // Voice note
     if (req.files.voice_note) {
       const file = req.files.voice_note[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
@@ -63,6 +59,7 @@ router.post('/response', cpUpload, async (req, res) => {
       media.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
+    // Video
     if (req.files.video) {
       const file = req.files.video[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
@@ -70,6 +67,7 @@ router.post('/response', cpUpload, async (req, res) => {
       media.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
+    // Image
     if (req.files.image) {
       const file = req.files.image[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
@@ -77,19 +75,24 @@ router.post('/response', cpUpload, async (req, res) => {
       media.image_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    const Satisfy = new satisfy({
+    // Create and save
+    const satisfyDoc = new satisfy({
       user_id,
       response_person_id,
       ticket_id,
       type,
       description,
       priority,
-      media,
+      media
     });
 
-    await Satisfy.save();
+    await satisfyDoc.save();
 
-    res.status(201).json({ message: 'Response created successfully.', response });
+    res.status(201).json({
+      success: true,
+      message: 'Response created successfully.',
+      data: satisfyDoc
+    });
   } catch (error) {
     console.error('Error creating response:', error);
     res.status(500).json({ error: 'Internal server error.' });

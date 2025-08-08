@@ -30,9 +30,6 @@ const SatisfySchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  deadline: {
-    type: Date,
-  },
   media: {
     voice_note_url: String,
     video_url: String,
@@ -42,10 +39,7 @@ const SatisfySchema = new mongoose.Schema({
     type: String,
     default: 'Completed',
   },
-  rights: {
-    type: String,
-    enum: ['View', 'Forward', 'Power'],
-  }
+
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: false }
 });
