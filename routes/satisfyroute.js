@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const multer = require('multer');
 const Response = require('../models/ticketresponse'); // adjust path as needed
