@@ -5,6 +5,7 @@ const fs = require('fs');
 const multer = require('multer');
 const Response = require('../models/ticketresponse'); // adjust path as needed
 const satisfy = require('../models/satisfy');
+const Ticket = require('../models/ticket');
 
 // Create upload directory if it doesn't exist
 const uploadDir = path.join(__dirname, '..', 'users_data');
@@ -149,15 +150,21 @@ router.get('/response', async (req, res) => {
 router.put('/satisfy/:id', cpUpload, async (req, res) => {
   try {
     const { id } = req.params;
+    const { ticket_id } = req.body;
 
-    // Validate ID format
+    // Validate Satisfy ID format
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid satisfy ID format' });
     }
 
-    // Allowed fields to update (deadline excluded)
+    // Validate Ticket ID format if provided
+    if (ticket_id && !mongoose.Types.ObjectId.isValid(ticket_id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ticket ID format' });
+    }
+
+    // Allowed fields to update for Satisfy
     const updateData = {};
-    const allowedFields = ['type', 'description', 'priority', 'status', 'rights'];
+    const allowedFields = ['type', 'description', 'priority', 'status'];
 
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
@@ -170,21 +177,21 @@ router.put('/satisfy/:id', cpUpload, async (req, res) => {
     const uniqueSuffix = Date.now();
     const serverUrl = `${req.protocol}://${req.get('host')}`;
 
-    if (req.files.voice_note) {
+    if (req.files?.voice_note) {
       const file = req.files.voice_note[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_voice${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
       media.voice_note_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    if (req.files.video) {
+    if (req.files?.video) {
       const file = req.files.video[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_video${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
       media.video_url = `${serverUrl}/users_data/${path.basename(newPath)}`;
     }
 
-    if (req.files.image) {
+    if (req.files?.image) {
       const file = req.files.image[0];
       const newPath = path.join(uploadDir, `${uniqueSuffix}_image${path.extname(file.originalname)}`);
       fs.renameSync(file.path, newPath);
@@ -195,14 +202,31 @@ router.put('/satisfy/:id', cpUpload, async (req, res) => {
       updateData.media = media;
     }
 
-    // Update document
+    // Update Satisfy record
     const updatedSatisfy = await satisfy.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!updatedSatisfy) {
       return res.status(404).json({ success: false, message: 'Satisfy record not found' });
     }
 
-    res.json({ success: true, message: 'Satisfy record updated successfully', data: updatedSatisfy });
+    // If ticket_id is provided, update its status
+    if (ticket_id) {
+      const updatedTicket = await Ticket.findByIdAndUpdate(
+        ticket_id,
+        { status: 'Satisfied' },
+        { new: true }
+      );
+
+      if (!updatedTicket) {
+        return res.status(404).json({ success: false, message: 'Ticket not found to update status' });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Satisfy record updated successfully',
+      data: updatedSatisfy
+    });
   } catch (error) {
     console.error('Error updating satisfy record:', error);
     res.status(500).json({ success: false, message: 'Server error' });
