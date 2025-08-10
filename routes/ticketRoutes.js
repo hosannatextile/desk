@@ -749,4 +749,76 @@ router.delete('/tickets/delete-all', async (req, res) => {
   }
 });
 
+
+
+router.get('/admin-summary', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing user_id' });
+    }
+
+    // 1️⃣ Check if user is admin
+    const user = await User.findById(user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (!['Super Admin', 'Admin', 'Management'].includes(user.role)) {
+      return res.status(403).json({ success: false, message: 'Access denied. User is not admin.' });
+    }
+
+    // 2️⃣ Get date range from start of month to today
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endDate = new Date(); // current date and time
+
+    // 3️⃣ Fetch tickets for current month
+    const tickets = await Ticket.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfMonth, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get total tickets count separately
+    const totalTickets = await Ticket.countDocuments({
+      created_at: { $gte: startOfMonth, $lte: endDate }
+    });
+
+    // 4️⃣ Fetch tasks for current month
+    const totalTasks = await Task.countDocuments({
+      created_at: { $gte: startOfMonth, $lte: endDate }
+    });
+
+    // 5️⃣ Format response
+    const statusCounts = {};
+    tickets.forEach(t => {
+      statusCounts[t._id] = t.count;
+    });
+
+    return res.json({
+      success: true,
+      dateRange: {
+        from: startOfMonth,
+        to: endDate
+      },
+      totalTickets,
+      ticketStatusCounts: statusCounts,
+      totalTasks
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin summary:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;
