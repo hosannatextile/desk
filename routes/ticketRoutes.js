@@ -751,121 +751,128 @@ router.delete('/tickets/delete-all', async (req, res) => {
 
 
 
-router.get('/admin-summary', async (req, res) => {
+router.get('/working-tasks-tickets', async (req, res) => {
   try {
-    const { user_id } = req.query;
-
-    if (!user_id || !mongoose.Types.ObjectId.isValid(user_id)) {
-      return res.status(400).json({ success: false, message: 'Invalid or missing user_id' });
-    }
-
-    // 1️⃣ Check if user is admin
-    const user = await User.findById(user_id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    if (!['Super Admin', 'Admin', 'Management'].includes(user.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied. User is not admin.' });
-    }
-
-    // 2️⃣ Get date range from start of month to today
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endDate = new Date(); // current date and time
-
-    // 3️⃣ Fetch tickets for current month
-    const tickets = await Ticket.aggregate([
+    // 🟢 Tasks: Working + Assigned to Admin
+    const tasks = await Task.aggregate([
+      { $match: { status: 'Working' } },
       {
-        $match: {
-          created_at: { $gte: startOfMonth, $lte: endDate }
+        $lookup: {
+          from: 'users',
+          localField: 'assign_to',
+          foreignField: '_id',
+          as: 'assigned_users'
+        }
+      },
+      // Sirf wahi tasks jisme assigned user Admin ho
+      { $match: { 'assigned_users.role': 'Admin' } },
+      {
+        $addFields: {
+          assigned_admins: {
+            $filter: {
+              input: '$assigned_users',
+              as: 'user',
+              cond: { $eq: ['$$user.role', 'Admin'] }
+            }
+          }
         }
       },
       {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 }
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      {
+        $project: {
+          _id: 1,
+          Details: 1,
+          priority: 1,
+          targetget_date: 1,
+          status: 1,
+          created_at: 1,
+          creator: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          },
+          assigned_admins: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          }
         }
       }
     ]);
 
-    // Get total tickets count separately
-    const totalTickets = await Ticket.countDocuments({
-      created_at: { $gte: startOfMonth, $lte: endDate }
-    });
-
-    // 4️⃣ Fetch tasks for current month
-    const totalTasks = await Task.countDocuments({
-      created_at: { $gte: startOfMonth, $lte: endDate }
-    });
-
-    // 5️⃣ Format response
-    const statusCounts = {};
-    tickets.forEach(t => {
-      statusCounts[t._id] = t.count;
-    });
-
-    return res.json({
-      success: true,
-      dateRange: {
-        from: startOfMonth,
-        to: endDate
+    // 🟢 Tickets: Working + Recipient is Admin
+    const tickets = await Ticket.aggregate([
+      { $match: { status: 'Working' } },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'recipient_ids',
+          foreignField: '_id',
+          as: 'recipients'
+        }
       },
-      totalTickets,
-      ticketStatusCounts: statusCounts,
-      totalTasks
-    });
-
-  } catch (error) {
-    console.error('Error fetching admin summary:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
-
-
-router.get('/working-tasks-tickets', async (req, res) => {
-  try {
-    // 🟢 Tasks: Working
-    const tasksRaw = await Task.find({ status: 'Working' })
-      .populate({
-        path: 'assign_to',
-        select: '_id fullName email department role'
-      })
-      .populate({
-        path: 'user_id',
-        select: '_id fullName email department role'
-      })
-      .lean();
-
-    // Sirf wo tasks rakho jisme assign_to me Admin ho
-    const tasks = tasksRaw
-      .map(task => ({
-        ...task,
-        assign_to: task.assign_to.filter(u => u.role === 'Admin')
-      }))
-      .filter(task => task.assign_to.length > 0);
-
-    // 🟢 Tickets: Working
-    const ticketsRaw = await Ticket.find({ status: 'Working' })
-      .populate({
-        path: 'recipient_ids',
-        select: '_id fullName email department role'
-      })
-      .populate({
-        path: 'user_id',
-        select: '_id fullName email department role'
-      })
-      .lean();
-
-    // Sirf wo tickets rakho jisme recipient_ids me Admin ho
-    const tickets = ticketsRaw
-      .map(ticket => ({
-        ...ticket,
-        recipient_ids: ticket.recipient_ids.filter(u => u.role === 'Admin')
-      }))
-      .filter(ticket => ticket.recipient_ids.length > 0);
+      // Sirf wahi tickets jisme recipient Admin ho
+      { $match: { 'recipients.role': 'Admin' } },
+      {
+        $addFields: {
+          assigned_admins: {
+            $filter: {
+              input: '$recipients',
+              as: 'user',
+              cond: { $eq: ['$$user.role', 'Admin'] }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      {
+        $project: {
+          _id: 1,
+          type: 1,
+          description: 1,
+          priority: 1,
+          deadline: 1,
+          status: 1,
+          created_at: 1,
+          creator: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          },
+          assigned_admins: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          }
+        }
+      }
+    ]);
 
     res.json({ tasks, tickets });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
