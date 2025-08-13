@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const Ticket = require('../models/ticket');
+const Ticket = require('../models/Ticket');
 const User = require('../models/user');
 const Assign = require('../models/assign');
 const mongoose = require('mongoose');
@@ -46,7 +46,7 @@ router.post('/', cpUpload, async (req, res) => {
     rights
   } = req.body;
 
-  if (!user_id || !recipient_ids || !type || !descripton || !priority) {
+  if (!user_id || !recipient_ids || !type || !priority) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
