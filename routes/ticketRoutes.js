@@ -821,4 +821,129 @@ router.get('/admin-summary', async (req, res) => {
   }
 });
 
+
+router.get('/working-tasks-tickets', async (req, res) => {
+  try {
+    // Tasks fetch
+    const tasks = await Task.aggregate([
+      { $match: { status: 'Working' } },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'assign_to',
+          foreignField: '_id',
+          as: 'assigned_users'
+        }
+      },
+      { $match: { 'assigned_users.role': 'Admin' } },
+      {
+        $addFields: {
+          assigned_admins: {
+            $filter: {
+              input: '$assigned_users',
+              as: 'user',
+              cond: { $eq: ['$$user.role', 'Admin'] }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      {
+        $project: {
+          _id: 1,
+          Details: 1,
+          priority: 1,
+          targetget_date: 1,
+          status: 1,
+          created_at: 1,
+          creator: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          },
+          assigned_admins: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          }
+        }
+      }
+    ]);
+
+    // Tickets fetch
+    const tickets = await Ticket.aggregate([
+      { $match: { status: 'Working' } },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'assign_to',
+          foreignField: '_id',
+          as: 'assigned_users'
+        }
+      },
+      { $match: { 'assigned_users.role': 'Admin' } },
+      {
+        $addFields: {
+          assigned_admins: {
+            $filter: {
+              input: '$assigned_users',
+              as: 'user',
+              cond: { $eq: ['$$user.role', 'Admin'] }
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'User',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      {
+        $project: {
+          _id: 1,
+          Details: 1,
+          priority: 1,
+          targetget_date: 1,
+          status: 1,
+          created_at: 1,
+          creator: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          },
+          assigned_admins: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            department: 1,
+            role: 1
+          }
+        }
+      }
+    ]);
+
+    res.json({ tasks, tickets });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;
