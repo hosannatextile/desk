@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const mongoose = require('mongoose');
-const Ticket=require('../models/ticket')
+const Ticket=require('../models/Ticket')
 const User = require('../models/user');
 // Ensure uploads folder exists
 const uploadDir = path.join(__dirname, '..', 'users_data');

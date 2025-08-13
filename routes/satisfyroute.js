@@ -6,7 +6,7 @@ const fs = require('fs');
 const multer = require('multer');
 const Response = require('../models/ticketresponse'); // adjust path as needed
 const satisfy = require('../models/satisfy');
-const Ticket = require('../models/ticket');
+const Ticket = require('../models/Ticket');
 
 // Create upload directory if it doesn't exist
 const uploadDir = path.join(__dirname, '..', 'users_data');
