@@ -824,126 +824,54 @@ router.get('/admin-summary', async (req, res) => {
 
 router.get('/working-tasks-tickets', async (req, res) => {
   try {
-    // Tasks fetch
-    const tasks = await Task.aggregate([
-      { $match: { status: 'Working' } },
-      {
-        $lookup: {
-          from: 'User',
-          localField: 'assign_to',
-          foreignField: '_id',
-          as: 'assigned_users'
-        }
-      },
-      { $match: { 'assigned_users.role': 'Admin' } },
-      {
-        $addFields: {
-          assigned_admins: {
-            $filter: {
-              input: '$assigned_users',
-              as: 'user',
-              cond: { $eq: ['$$user.role', 'Admin'] }
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'User',
-          localField: 'user_id',
-          foreignField: '_id',
-          as: 'creator'
-        }
-      },
-      { $unwind: '$creator' },
-      {
-        $project: {
-          _id: 1,
-          Details: 1,
-          priority: 1,
-          targetget_date: 1,
-          status: 1,
-          created_at: 1,
-          creator: {
-            _id: 1,
-            fullName: 1,
-            email: 1,
-            department: 1,
-            role: 1
-          },
-          assigned_admins: {
-            _id: 1,
-            fullName: 1,
-            email: 1,
-            department: 1,
-            role: 1
-          }
-        }
-      }
-    ]);
+    // 🟢 Tasks: Working
+    const tasksRaw = await Task.find({ status: 'Working' })
+      .populate({
+        path: 'assign_to',
+        select: '_id fullName email department role'
+      })
+      .populate({
+        path: 'user_id',
+        select: '_id fullName email department role'
+      })
+      .lean();
 
-    // Tickets fetch
-    const tickets = await Ticket.aggregate([
-      { $match: { status: 'Working' } },
-      {
-        $lookup: {
-          from: 'User',
-          localField: 'assign_to',
-          foreignField: '_id',
-          as: 'assigned_users'
-        }
-      },
-      { $match: { 'assigned_users.role': 'Admin' } },
-      {
-        $addFields: {
-          assigned_admins: {
-            $filter: {
-              input: '$assigned_users',
-              as: 'user',
-              cond: { $eq: ['$$user.role', 'Admin'] }
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'User',
-          localField: 'user_id',
-          foreignField: '_id',
-          as: 'creator'
-        }
-      },
-      { $unwind: '$creator' },
-      {
-        $project: {
-          _id: 1,
-          Details: 1,
-          priority: 1,
-          targetget_date: 1,
-          status: 1,
-          created_at: 1,
-          creator: {
-            _id: 1,
-            fullName: 1,
-            email: 1,
-            department: 1,
-            role: 1
-          },
-          assigned_admins: {
-            _id: 1,
-            fullName: 1,
-            email: 1,
-            department: 1,
-            role: 1
-          }
-        }
-      }
-    ]);
+    // Sirf wo tasks rakho jisme assign_to me Admin ho
+    const tasks = tasksRaw
+      .map(task => ({
+        ...task,
+        assign_to: task.assign_to.filter(u => u.role === 'Admin')
+      }))
+      .filter(task => task.assign_to.length > 0);
+
+    // 🟢 Tickets: Working
+    const ticketsRaw = await Ticket.find({ status: 'Working' })
+      .populate({
+        path: 'recipient_ids',
+        select: '_id fullName email department role'
+      })
+      .populate({
+        path: 'user_id',
+        select: '_id fullName email department role'
+      })
+      .lean();
+
+    // Sirf wo tickets rakho jisme recipient_ids me Admin ho
+    const tickets = ticketsRaw
+      .map(ticket => ({
+        ...ticket,
+        recipient_ids: ticket.recipient_ids.filter(u => u.role === 'Admin')
+      }))
+      .filter(ticket => ticket.recipient_ids.length > 0);
 
     res.json({ tasks, tickets });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 module.exports = router;
