@@ -370,63 +370,49 @@ router.delete('/assignments/delete-all', async (req, res) => {
   }
 });
 
-router.get('/admin-ids', async (req, res) => {
+// ✅ API: Get all Admin users with their "Working" assignments
+router.get('/admin-assignments', async (req, res) => {
   try {
-    const admins = await User.find({ role: "Admin" }).select('_id');
+    // 1. Fetch all Admins
+    const admins = await User.find({ role: "Admin" })
+      .select('fullName email role');
 
-    res.status(200).json({
-      message: "List of Admin user IDs",
-      ids: admins.map(a => a._id)
-    });
-  } catch (error) {
-    console.error("Error fetching Admin IDs:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-
-// ✅ API: Get assignments by user ids in assign_to & status = Working
-router.post('/assignments-by-ids', async (req, res) => {
-  try {
-    const { ids } = req.body; // list of user IDs
-
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "Please provide a valid list of ids" });
+    if (!admins.length) {
+      return res.status(404).json({ message: "No Admin users found" });
     }
 
-    // 1. Fetch users
-    const users = await User.find({ _id: { $in: ids } })
-      .select('fullName email role'); // select only useful fields
+    const adminIds = admins.map(a => a._id);
 
-    // 2. Fetch assignments (tickets) for these users
+    // 2. Fetch assignments for these Admins
     const assignments = await Assign.find({
-      assign_to: { $in: ids },  // assigned to any of these users
+      assign_to: { $in: adminIds },
       status: "Working"
     })
       .populate('user_id', 'fullName email')   // creator info
       .populate('assign_to', 'fullName email') // assignee info
       .lean();
 
-    // 3. Merge users with their assignments
-    const result = users.map(user => {
+    // 3. Merge Admins with their assignments
+    const result = admins.map(admin => {
       return {
-        ...user.toObject(),
+        ...admin.toObject(),
         assignments: assignments.filter(a =>
-          a.assign_to.some(u => u._id.toString() === user._id.toString())
+          a.assign_to.some(u => u._id.toString() === admin._id.toString())
         )
-      }
+      };
     });
 
     res.status(200).json({
-      message: "Users with assignments",
+      message: "Admins with their Working assignments",
       data: result
     });
 
   } catch (error) {
-    console.error("Error fetching assignments:", error);
+    console.error("Error fetching Admin assignments:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 
 // ✅ API: Get all assignments with status = "Working"
