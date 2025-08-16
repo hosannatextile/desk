@@ -325,6 +325,7 @@ router.get('/filtertwo', async (req, res) => {
         })),
 
         assign_details: assignRecord ? {
+         assign_id: assignRecord._id,
           manager_id: assignRecord.user_id,
           assign_to: assignRecord.assign_to.map(id => ({
             _id: id,
