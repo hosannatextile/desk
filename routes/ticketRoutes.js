@@ -880,5 +880,24 @@ router.get('/working-tasks-tickets', async (req, res) => {
 });
 
 
+// ✅ API: Get all tickets
+router.get('/tickets', async (req, res) => {
+  try {
+    const tickets = await Ticket.find()
+      .populate('user_id', 'fullName email')        // populate creator details
+      .populate('recipient_ids', 'fullName email')  // populate recipients
+      .lean();
+
+    res.status(200).json({
+      message: "All tickets fetched successfully",
+      count: tickets.length,
+      data: tickets
+    });
+  } catch (error) {
+    console.error("Error fetching tickets:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 
 module.exports = router;

@@ -314,4 +314,20 @@ router.put('/update-user/:id', async (req, res) => {
   }
 });
 
+
+// ✅ API: Get all Admin user IDs
+router.get('/admin-ids', async (req, res) => {
+  try {
+    const admins = await User.find({ role: "Admin" }).select('_id');
+
+    res.status(200).json({
+      message: "List of Admin user IDs",
+      ids: admins.map(a => a._id)
+    });
+  } catch (error) {
+    console.error("Error fetching Admin IDs:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;

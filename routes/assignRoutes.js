@@ -370,4 +370,133 @@ router.delete('/assignments/delete-all', async (req, res) => {
   }
 });
 
+router.get('/admin-ids', async (req, res) => {
+  try {
+    const admins = await User.find({ role: "Admin" }).select('_id');
+
+    res.status(200).json({
+      message: "List of Admin user IDs",
+      ids: admins.map(a => a._id)
+    });
+  } catch (error) {
+    console.error("Error fetching Admin IDs:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+// ✅ API: Get assignments by user ids in assign_to & status = Working
+router.post('/assignments-by-ids', async (req, res) => {
+  try {
+    const { ids } = req.body; // list of user IDs
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide a valid list of ids" });
+    }
+
+    // 1. Fetch users
+    const users = await User.find({ _id: { $in: ids } })
+      .select('fullName email role'); // select only useful fields
+
+    // 2. Fetch assignments (tickets) for these users
+    const assignments = await Assign.find({
+      assign_to: { $in: ids },  // assigned to any of these users
+      status: "Working"
+    })
+      .populate('user_id', 'fullName email')   // creator info
+      .populate('assign_to', 'fullName email') // assignee info
+      .lean();
+
+    // 3. Merge users with their assignments
+    const result = users.map(user => {
+      return {
+        ...user.toObject(),
+        assignments: assignments.filter(a =>
+          a.assign_to.some(u => u._id.toString() === user._id.toString())
+        )
+      }
+    });
+
+    res.status(200).json({
+      message: "Users with assignments",
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Error fetching assignments:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+// ✅ API: Get all assignments with status = "Working"
+router.get('/assignments/working', async (req, res) => {
+  try {
+    const assignments = await Assign.find({ status: "Working" })
+      .populate('user_id', 'fullName email')   // populate user_id with name/email
+      .populate('assign_to', 'fullName email') // populate assign_to with names
+      .lean();
+
+    res.status(200).json({
+      message: "Assignments with status 'Working'",
+      count: assignments.length,
+      data: assignments
+    });
+  } catch (error) {
+    console.error("Error fetching working assignments:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+router.get('/assignments', async (req, res) => {
+  try {
+    const assignments = await Assign.find()
+      .populate('user_id', 'fullName email')   // populate user_id with name/email
+      .populate('assign_to', 'fullName email') // populate assign_to with names
+      .lean();
+
+    res.status(200).json({
+      message: "All assignments",
+      count: assignments.length,
+      data: assignments
+    });
+  } catch (error) {
+    console.error("Error fetching all assignments:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+router.put('/update-status/:id', async (req, res) => {
+  try {
+    const { id } = req.params; // assign ID from URL
+    const { status } = req.body; // new status from request body
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    // ✅ Find and update
+    const updatedAssign = await Assign.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true } // return updated document
+    );
+
+    if (!updatedAssign) {
+      return res.status(404).json({ message: "Assign not found" });
+    }
+
+    res.json({
+      message: "Status updated successfully",
+      data: updatedAssign
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;
