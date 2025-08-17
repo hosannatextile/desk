@@ -383,13 +383,14 @@ router.get('/admin-assignments', async (req, res) => {
 
     const adminIds = admins.map(a => a._id);
 
-    // 2. Fetch assignments for these Admins
+    // 2. Fetch assignments for these Admins, include Ticket details
     const assignments = await Assign.find({
       assign_to: { $in: adminIds },
       status: "Working"
     })
       .populate('user_id', 'fullName email')   // creator info
       .populate('assign_to', 'fullName email') // assignee info
+      .populate('ticket_id')                   // ✅ bring in full Ticket details
       .lean();
 
     // 3. Merge Admins with their assignments
@@ -412,6 +413,7 @@ router.get('/admin-assignments', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 
 
