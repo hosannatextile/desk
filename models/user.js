@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
   department: {
     type: String,
     required: true,
-    enum: ['HR', 'Finance', 'IT', 'Management', 'Admin', 'Operations','Folding','Dispatch','Gate','Jigger','Maintainance','Shade Band','Store','Electrical','Finishing','Accounts'],
+    enum: ['HR', 'Finance', 'IT', 'Management', 'Admin', 'Operations','Folding','Dispatch','Gate','Jigger','Maintainance','Shade Band','Store','Electrical','Finishing','Accounts','Greigh'],
   },
   role: {
     type: String,
