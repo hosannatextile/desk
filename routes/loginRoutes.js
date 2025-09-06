@@ -5,17 +5,10 @@ const User = require('../models/user');
 
 require('dotenv').config();
 
-const ACCESS_TOKEN_SECRET = 'a9f83b7f1d6e4c8a9e6f2c3b0d1f7a3e4b8c6d2e1f0a5c7b9e3d1f2a6c4b7e9';
-const REFRESH_TOKEN_SECRET = 'a9f83b7f1d6e4c8a9e6f2c3b0d1f7a3e4b8c6d2e1f0a5c7b9e3d1f2a6c4b7e9';
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'a9f83b7f1d6e4c8a9e6f2c3b0d1f7a3e4b8c6d2e1f0a5c7b9e3d1f2a6c4b7e9';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'b7e9a9f83b7f1d6e4c8a9e6f2c3b0d1f7a3e4b8c6d2e1f0a5c7b9e3d1f2a6c4';
 
-let refreshTokens = []; // For demo only. Use DB in production.
-
-const multer = require('multer');
-
-// Set up Multer for handling form-data (no file here, just fields)
-const upload = multer();
-
-// Use this middleware to handle form-data parsing
+// ✅ CNIC Login
 router.post('/', async (req, res) => {
   try {
     const { cnic, password, role, fcm_token } = req.body;
@@ -24,20 +17,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'CNIC, password, and role are required.' });
     }
 
-    const user = await User.findOne({ cnic, password, role }).select(
-      '_id fullName cnic email role username profilePhoto fcm_token'
-    );
+    const user = await User.findOne({ cnic, password, role });
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials or role.' });
     }
 
-    // Log profilePhoto to debug
-    console.log('User profilePhoto:', user.profilePhoto);
-
+    // Update FCM token if needed
     if (fcm_token && user.fcm_token !== fcm_token) {
       user.fcm_token = fcm_token;
-      await user.save();
     }
 
     const payload = {
@@ -49,7 +37,9 @@ router.post('/', async (req, res) => {
     const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
     const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
-    refreshTokens.push(refreshToken);
+    // Save refresh token in DB
+    user.referesh_token = refreshToken;
+    await user.save();
 
     res.json({
       message: 'Login successful',
@@ -62,7 +52,7 @@ router.post('/', async (req, res) => {
         email: user.email,
         role: user.role,
         username: user.username,
-        profilePhoto: user.profilePhoto // Explicitly included
+        profilePhoto: user.profilePhoto || null
       }
     });
 
@@ -72,7 +62,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-
+// ✅ Email Login
 router.post('/emaillogin', async (req, res) => {
   const { email, password, role, fcm_token } = req.body;
 
@@ -81,7 +71,6 @@ router.post('/emaillogin', async (req, res) => {
   }
 
   try {
-    // Build query dynamically with optional role
     const userQuery = { email, password };
     if (role) userQuery.role = role;
 
@@ -91,10 +80,8 @@ router.post('/emaillogin', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email, password, or role.' });
     }
 
-    // ✅ Update fcm_token if provided
     if (fcm_token) {
       user.fcm_token = fcm_token;
-      await user.save(); // Save updated token to DB
     }
 
     const payload = {
@@ -106,7 +93,9 @@ router.post('/emaillogin', async (req, res) => {
     const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
     const refreshToken = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
-    refreshTokens.push(refreshToken); // In production, store securely
+    // Save refresh token in DB
+    user.referesh_token = refreshToken;
+    await user.save();
 
     res.json({
       message: 'Login successful',
@@ -119,7 +108,7 @@ router.post('/emaillogin', async (req, res) => {
         cnic: user.cnic,
         role: user.role,
         username: user.username,
-        profilePhoto: user.profilePhoto
+        profilePhoto: user.profilePhoto || null
       }
     });
 
@@ -129,24 +118,42 @@ router.post('/emaillogin', async (req, res) => {
   }
 });
 
-router.post('/refresh', (req, res) => {
+// ✅ Refresh Token
+router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
 
-  if (!refreshToken || !refreshTokens.includes(refreshToken)) {
-    return res.status(403).json({ error: 'Invalid refresh token' });
+  if (!refreshToken) {
+    return res.status(403).json({ error: 'Refresh token is required' });
   }
 
-  jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+  try {
+    // Find user by refresh token
+    const user = await User.findOne({ referesh_token: refreshToken });
 
-    const newAccessToken = jwt.sign({
-      userId: user.userId,
-      cnic: user.cnic,
-      role: user.role
-    }, ACCESS_TOKEN_SECRET, { expiresIn: '30m' });
+    if (!user) {
+      return res.status(403).json({ error: 'Invalid refresh token' });
+    }
 
-    res.json({ accessToken: newAccessToken });
-  });
+    jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, decodedUser) => {
+      if (err) return res.status(403).json({ error: 'Invalid token' });
+
+      const newAccessToken = jwt.sign(
+        {
+          userId: decodedUser.userId,
+          cnic: decodedUser.cnic,
+          role: decodedUser.role,
+          email: decodedUser.email
+        },
+        ACCESS_TOKEN_SECRET,
+        { expiresIn: '30m' }
+      );
+
+      res.json({ accessToken: newAccessToken });
+    });
+  } catch (err) {
+    console.error('Refresh error:', err);
+    res.status(500).json({ error: 'Server error during token refresh' });
+  }
 });
 
 module.exports = router;

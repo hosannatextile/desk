@@ -54,6 +54,10 @@ const userSchema = new mongoose.Schema({
   fcm_token: {
     type: String,
     default: null,
+  },
+  referesh_token: {
+    type: String,
+    default: null,
   }
 }, { timestamps: true });
 
