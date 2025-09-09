@@ -285,20 +285,41 @@ router.delete('/users/:id', async (req, res) => {
 
 
 // Update User API
-router.put('/update-user/:id', async (req, res) => {
+router.put('/update-user/:id', upload.single('profilePhoto'), async (req, res) => {
   try {
     const { id } = req.params; // user_id from URL
-    const updates = req.body; // fields to update (optional fields)
+    let updates = req.body; // fields to update (optional)
 
-    // Ensure at least one field is being updated
-    if (!updates || Object.keys(updates).length === 0) {
+    // If no updates and no file provided
+    if ((!updates || Object.keys(updates).length === 0) && !req.file) {
       return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    let profilePhotoPath = null;
+    let profilePhotoUrl = null;
+    const serverUrl = `${req.protocol}://${req.get('host')}`;
+
+    if (req.file) {
+      const uniqueSuffix = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const newFileName = `${id}_${uniqueSuffix}${ext}`;
+      const oldPath = req.file.path;
+      const newPath = path.join(path.dirname(oldPath), newFileName);
+
+      // Rename file
+      fs.renameSync(oldPath, newPath);
+
+      profilePhotoPath = `users_data/${newFileName}`;
+      profilePhotoUrl = `${serverUrl}/${profilePhotoPath}`;
+
+      // Add to updates
+      updates.profilePhoto = profilePhotoPath;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       id,
-      { $set: updates }, // only update provided fields
-      { new: true, runValidators: true } // return updated doc & validate schema
+      { $set: updates },
+      { new: true, runValidators: true }
     );
 
     if (!updatedUser) {
@@ -307,7 +328,10 @@ router.put('/update-user/:id', async (req, res) => {
 
     res.status(200).json({
       message: "User updated successfully",
-      user: updatedUser
+      user: {
+        ...updatedUser.toJSON(),
+        profilePhotoUrl
+      }
     });
   } catch (error) {
     res.status(500).json({ message: "Error updating user", error: error.message });
